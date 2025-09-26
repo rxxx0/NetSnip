@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #E0E5EC;
+    --surface: #E0E5EC;
+    --primary: #6C5CE7;
+    --secondary: #00B894;
+    --danger: #FF6B6B;
+    --warning: #FDCB6E;
+    --text-primary: #2D3436;
+    --text-secondary: #636E72;
+  }
+
+  .dark {
+    --background: #1E1E2E;
+    --surface: #2A2A3E;
+    --primary: #7C6FE8;
+    --secondary: #00C9A7;
+    --danger: #FF7B7B;
+    --warning: #FDDB6E;
+    --text-primary: #F5F5F5;
+    --text-secondary: #B2B2C8;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--background);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease;
+  }
+}
+
+@layer components {
+  .neu-button {
+    @apply px-6 py-3 rounded-xl transition-all duration-300 ease-out;
+    background: linear-gradient(145deg, #e6ebf2, #d4d9e0);
+    box-shadow: 6px 6px 12px rgba(163, 177, 198, 0.6),
+                -6px -6px 12px rgba(255, 255, 255, 0.5);
+  }
+
+  .neu-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 8px 8px 16px rgba(163, 177, 198, 0.6),
+                -8px -8px 16px rgba(255, 255, 255, 0.5);
+  }
+
+  .neu-button:active {
+    box-shadow: inset 5px 5px 10px rgba(163, 177, 198, 0.6),
+                inset -5px -5px 10px rgba(255, 255, 255, 0.5);
+  }
+
+  .dark .neu-button {
+    background: linear-gradient(145deg, #252537, #1f1f2f);
+    box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.3),
+                -6px -6px 12px rgba(50, 50, 70, 0.3);
+  }
+
+  .dark .neu-button:hover {
+    box-shadow: 8px 8px 16px rgba(0, 0, 0, 0.3),
+                -8px -8px 16px rgba(50, 50, 70, 0.3);
+  }
+
+  .dark .neu-button:active {
+    box-shadow: inset 5px 5px 10px rgba(0, 0, 0, 0.3),
+                inset -5px -5px 10px rgba(50, 50, 70, 0.3);
+  }
+
+  .neu-card {
+    @apply p-6 rounded-2xl transition-all duration-300;
+    background: var(--surface);
+    box-shadow: 6px 6px 12px rgba(163, 177, 198, 0.6),
+                -6px -6px 12px rgba(255, 255, 255, 0.5);
+  }
+
+  .dark .neu-card {
+    background: var(--surface);
+    box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.3),
+                -6px -6px 12px rgba(50, 50, 70, 0.3);
+  }
+
+  .neu-input {
+    @apply px-4 py-3 rounded-xl outline-none transition-all duration-300;
+    background: var(--surface);
+    box-shadow: inset 5px 5px 10px rgba(163, 177, 198, 0.6),
+                inset -5px -5px 10px rgba(255, 255, 255, 0.5);
+  }
+
+  .dark .neu-input {
+    background: var(--surface);
+    box-shadow: inset 5px 5px 10px rgba(0, 0, 0, 0.3),
+                inset -5px -5px 10px rgba(50, 50, 70, 0.3);
+  }
+
+  .neu-badge {
+    @apply px-3 py-1 rounded-lg text-xs font-medium;
+    background: linear-gradient(145deg, #e6ebf2, #d4d9e0);
+    box-shadow: 3px 3px 6px rgba(163, 177, 198, 0.4),
+                -3px -3px 6px rgba(255, 255, 255, 0.4);
+  }
+
+  .dark .neu-badge {
+    background: linear-gradient(145deg, #252537, #1f1f2f);
+    box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3),
+                -3px -3px 6px rgba(50, 50, 70, 0.3);
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-neu-primary to-neu-secondary bg-clip-text text-transparent;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
