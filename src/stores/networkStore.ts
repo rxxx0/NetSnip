@@ -2,17 +2,115 @@ import { create } from 'zustand';
 // Check if we're in a Tauri context
 const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
 
-// Fallback for non-Tauri environments
+// Fallback for non-Tauri environments with mock data
 const mockInvoke = async (cmd: string, _args?: any): Promise<any> => {
-  console.warn(`NetSnip: Running in web mode - ${cmd} command not available`);
-
   switch (cmd) {
     case 'scan_network':
-      return [];
+      // Return mock devices for testing
+      return [
+        {
+          id: 'gateway',
+          name: 'Netgear Nighthawk',
+          customName: 'Home Router',
+          ip: '192.168.1.1',
+          mac: 'E0:46:9A:2B:1C:3D',
+          manufacturer: 'Netgear Inc.',
+          deviceType: 'router',
+          status: 'online',
+          bandwidthCurrent: 523.7,
+          bandwidthLimit: null,
+          isGateway: true,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString(),
+        },
+        {
+          id: 'device-1',
+          name: 'MacBook Pro',
+          customName: 'My Laptop',
+          ip: '192.168.1.105',
+          mac: '3C:22:FB:91:45:2E',
+          manufacturer: 'Apple, Inc.',
+          deviceType: 'computer',
+          status: 'online',
+          bandwidthCurrent: 45.3,
+          bandwidthLimit: null,
+          isGateway: false,
+          isCurrentDevice: true,
+          lastSeen: new Date().toISOString(),
+        },
+        {
+          id: 'device-2',
+          name: 'iPhone 15 Pro',
+          customName: null,
+          ip: '192.168.1.112',
+          mac: 'A8:51:AB:C3:9F:7B',
+          manufacturer: 'Apple, Inc.',
+          deviceType: 'phone',
+          status: 'online',
+          bandwidthCurrent: 2.8,
+          bandwidthLimit: 10.0,
+          isGateway: false,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString(),
+        },
+        {
+          id: 'device-3',
+          name: 'Samsung Smart TV',
+          customName: 'Living Room TV',
+          ip: '192.168.1.134',
+          mac: '58:3A:FD:2E:91:C4',
+          manufacturer: 'Samsung Electronics',
+          deviceType: 'tv',
+          status: 'online',
+          bandwidthCurrent: 18.4,
+          bandwidthLimit: null,
+          isGateway: false,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString(),
+        },
+        {
+          id: 'device-4',
+          name: 'iPad Air',
+          customName: null,
+          ip: '192.168.1.156',
+          mac: 'DC:56:E7:12:8A:3F',
+          manufacturer: 'Apple, Inc.',
+          deviceType: 'tablet',
+          status: 'blocked',
+          bandwidthCurrent: 0.0,
+          bandwidthLimit: null,
+          isGateway: false,
+          isCurrentDevice: false,
+          lastSeen: new Date(Date.now() - 300000).toISOString(),
+        },
+        {
+          id: 'device-5',
+          name: 'Echo Dot',
+          customName: 'Alexa',
+          ip: '192.168.1.178',
+          mac: 'B4:7C:9C:8E:2D:1A',
+          manufacturer: 'Amazon Technologies Inc.',
+          deviceType: 'iot',
+          status: 'online',
+          bandwidthCurrent: 0.3,
+          bandwidthLimit: null,
+          isGateway: false,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString(),
+        },
+      ];
     case 'get_network_info':
-      return null;
+      return {
+        gatewayIp: '192.168.1.1',
+        gatewayMac: 'E0:46:9A:2B:1C:3D',
+        localIp: '192.168.1.105',
+        localMac: '3C:22:FB:91:45:2E',
+        subnetMask: '255.255.255.0',
+        interfaceName: 'en0'
+      };
     default:
-      throw new Error(`NetSnip requires the desktop app for network operations`);
+      console.log(`Mock: ${cmd} command called with args:`, _args);
+      return null;
   }
 };
 
@@ -28,7 +126,7 @@ export interface Device {
   ip: string;
   mac: string;
   manufacturer?: string;
-  deviceType: 'router' | 'computer' | 'phone' | 'tablet' | 'iot' | 'unknown';
+  deviceType: 'router' | 'computer' | 'phone' | 'tablet' | 'iot' | 'tv' | 'gaming' | 'unknown';
   status: 'online' | 'offline' | 'blocked' | 'limited';
   bandwidthCurrent: number;
   bandwidthLimit?: number;

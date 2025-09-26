@@ -9,100 +9,77 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
-  const { scanning, scanNetwork, devices, searchQuery, setSearchQuery } = useNetworkStore();
+  const { scanning, scanNetwork, searchQuery, setSearchQuery } = useNetworkStore();
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
-
-  const onlineDevices = devices.filter(d => d.status === 'online').length;
-  const blockedDevices = devices.filter(d => d.status === 'blocked').length;
 
   useEffect(() => {
     setSearchQuery(debouncedSearchQuery);
   }, [debouncedSearchQuery, setSearchQuery]);
 
   return (
-    <header className="mb-8">
-      <div className="neu-card p-6">
-        <div className="flex items-center justify-between">
-          {/* Logo - Simplified */}
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-gradient">
-              NetSnip
-            </h1>
+    <header className="mb-6">
+      <div className="neu-card p-4">
+        <div className="flex items-center justify-between gap-4">
+          {/* Logo - Clean and simple */}
+          <h1 className="text-xl font-bold" style={{ color: 'var(--accent-primary)' }}>
+            NetSnip
+          </h1>
 
-            {/* Status pills */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                <span className="text-sm font-medium text-text-secondary">
-                  {onlineDevices} online
-                </span>
-              </div>
-              {blockedDevices > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                  <span className="text-sm font-medium text-text-secondary">
-                    {blockedDevices} blocked
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Search Bar - More prominent */}
-          <div className="flex-1 max-w-xl mx-8">
+          {/* Search Bar - Smaller and refined */}
+          <div className="flex-1 max-w-md">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
               <input
                 type="text"
                 value={localSearchQuery}
                 onChange={(e) => setLocalSearchQuery(e.target.value)}
-                placeholder="Search by name, IP address, or MAC address..."
-                className="neu-input w-full pl-12 pr-10 py-3 text-sm"
+                placeholder="Search devices..."
+                className="neu-input w-full pl-9 pr-8 py-2 text-sm"
               />
               {localSearchQuery && (
                 <button
                   onClick={() => setLocalSearchQuery('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
                   aria-label="Clear search"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3 h-3" />
                 </button>
               )}
             </div>
           </div>
 
-          {/* Actions - Minimal */}
-          <div className="flex items-center gap-2">
+          {/* Actions - Minimal and compact */}
+          <div className="flex items-center gap-1">
             {/* Refresh Button */}
             <button
               onClick={() => scanNetwork()}
               disabled={scanning}
-              className={`neu-button p-3 rounded-xl ${scanning ? 'neu-pressed' : ''}`}
+              className={`neu-button p-2 rounded-lg ${scanning ? 'neu-pressed' : ''}`}
               aria-label="Refresh network scan"
             >
-              <RefreshCw className={`w-5 h-5 ${scanning ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
             </button>
 
             {/* Theme Toggle */}
             <button
               onClick={onToggleTheme}
-              className="neu-button p-3 rounded-xl"
+              className="neu-button p-2 rounded-lg"
               aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
             >
               {theme === 'light' ? (
-                <Moon className="w-5 h-5" />
+                <Moon className="w-4 h-4" />
               ) : (
-                <Sun className="w-5 h-5" />
+                <Sun className="w-4 h-4" />
               )}
             </button>
 
             {/* Settings */}
             <button
-              className="neu-button p-3 rounded-xl"
+              className="neu-button p-2 rounded-lg"
               aria-label="Settings"
             >
-              <Settings className="w-5 h-5" />
+              <Settings className="w-4 h-4" />
             </button>
           </div>
         </div>
