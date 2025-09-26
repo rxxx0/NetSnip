@@ -1,9 +1,8 @@
 import React, { useMemo } from 'react';
-import { Users, Shield, Activity, HardDrive, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useNetworkStore } from '../../stores/networkStore';
 
 export const Dashboard: React.FC = () => {
-  const { devices, networkInfo } = useNetworkStore();
+  const { devices, networkInfo, scanning } = useNetworkStore();
 
   const stats = useMemo(() => {
     const online = devices.filter(d => d.status === 'online').length;
@@ -17,99 +16,111 @@ export const Dashboard: React.FC = () => {
       blockedDevices: blocked,
       limitedDevices: limited,
       totalBandwidth: totalBandwidth.toFixed(1),
-      totalData: (totalBandwidth * 0.1).toFixed(2), // Mock calculation
     };
   }, [devices]);
 
   const StatCard: React.FC<{
-    icon: React.ReactNode;
     label: string;
     value: string | number;
-    color: string;
-    trend?: number;
-  }> = ({ icon, label, value, color, trend }) => (
-    <div className="neu-card p-5 rounded-2xl">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className={`w-12 h-12 rounded-xl ${color} flex items-center justify-center mb-3`}>
-            {icon}
-          </div>
-          <p className="text-3xl font-bold text-neu-text dark:text-dark-text">
-            {value}
-          </p>
-          <p className="text-sm text-neu-text-secondary dark:text-dark-text-secondary mt-1">
-            {label}
-          </p>
+    color?: string;
+    pulse?: boolean;
+  }> = ({ label, value, color = 'var(--accent-primary)', pulse = false }) => (
+    <div className="neu-card-hover p-6 text-center transition-all">
+      <div className="mb-3">
+        <div
+          className={`w-16 h-16 rounded-2xl mx-auto flex items-center justify-center ${pulse ? 'pulse-soft' : ''}`}
+          style={{
+            background: `linear-gradient(145deg, ${color}22, ${color}33)`,
+          }}
+        >
+          <div
+            className="w-8 h-8 rounded-lg"
+            style={{
+              background: `linear-gradient(145deg, ${color}, ${color}dd)`,
+            }}
+          />
         </div>
-        {trend !== undefined && (
-          <div className="flex items-center gap-1">
-            <TrendingUp className={`w-4 h-4 ${trend > 0 ? 'text-green-500' : 'text-red-500'}`} />
-            <span className={`text-sm font-medium ${trend > 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {Math.abs(trend)}%
-            </span>
-          </div>
-        )}
       </div>
+      <p className="text-3xl font-bold text-text-primary mb-1">
+        {value}
+      </p>
+      <p className="text-sm font-medium text-text-secondary">
+        {label}
+      </p>
     </div>
   );
 
   return (
     <div className="mb-8">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-neu-text dark:text-dark-text mb-2">
+        <h2 className="text-xl font-semibold text-text-primary mb-2">
           Network Overview
         </h2>
-        <p className="text-sm text-neu-text-secondary dark:text-dark-text-secondary">
-          {networkInfo ? `Connected to ${networkInfo.interfaceName} • ${networkInfo.localIp}` : 'Scanning network...'}
+        <p className="text-sm text-text-secondary">
+          {networkInfo ? (
+            <span className="font-mono">
+              {networkInfo.interfaceName} • {networkInfo.localIp}
+            </span>
+          ) : (
+            scanning ? 'Scanning network...' : 'No network info available'
+          )}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
         <StatCard
-          icon={<Users className="w-6 h-6 text-white" />}
           label="Total Devices"
           value={stats.totalDevices}
-          color="bg-gradient-to-br from-blue-500 to-blue-600"
-          trend={12}
+          color="var(--accent-primary)"
         />
 
         <StatCard
-          icon={<Shield className="w-6 h-6 text-white" />}
-          label="Blocked Devices"
+          label="Online Now"
+          value={stats.onlineDevices}
+          color="var(--accent-success)"
+          pulse={stats.onlineDevices > 0}
+        />
+
+        <StatCard
+          label="Blocked"
           value={stats.blockedDevices}
-          color="bg-gradient-to-br from-red-500 to-red-600"
+          color="var(--accent-danger)"
         />
 
         <StatCard
-          icon={<Activity className="w-6 h-6 text-white" />}
-          label="Bandwidth (MB/s)"
-          value={stats.totalBandwidth}
-          color="bg-gradient-to-br from-green-500 to-green-600"
-          trend={-5}
-        />
-
-        <StatCard
-          icon={<HardDrive className="w-6 h-6 text-white" />}
-          label="Data Usage (GB)"
-          value={stats.totalData}
-          color="bg-gradient-to-br from-purple-500 to-purple-600"
-          trend={23}
+          label="Bandwidth"
+          value={`${stats.totalBandwidth} MB/s`}
+          color="var(--accent-warning)"
         />
       </div>
 
-      {/* Alerts Section */}
-      {stats.blockedDevices > 0 && (
-        <div className="mt-6 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
+      {/* Network Status Banner */}
+      {scanning && (
+        <div className="mt-6 neu-card p-4 animate-slide-up">
+          <div className="flex items-center gap-4">
+            <div className="radar-sweep scale-75"></div>
             <div>
-              <p className="font-medium text-orange-900 dark:text-orange-200">
-                {stats.blockedDevices} device{stats.blockedDevices !== 1 ? 's' : ''} currently blocked
+              <p className="font-medium text-text-primary">
+                Scanning network...
               </p>
-              <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                Review blocked devices to ensure network stability
+              <p className="text-sm text-text-secondary mt-1">
+                Discovering devices on your network
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warning for blocked devices */}
+      {stats.blockedDevices > 0 && !scanning && (
+        <div className="mt-6 neu-card p-4 animate-fade-in" style={{
+          background: 'linear-gradient(145deg, var(--accent-danger)11, var(--accent-danger)22)',
+        }}>
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+            <p className="font-medium text-text-primary">
+              {stats.blockedDevices} device{stats.blockedDevices !== 1 ? 's' : ''} blocked
+            </p>
           </div>
         </div>
       )}

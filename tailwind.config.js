@@ -7,23 +7,32 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        'sans': ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        'mono': ['JetBrains Mono', 'SF Mono', 'Monaco', 'monospace'],
+      },
       colors: {
-        'neu-bg': '#E0E5EC',
-        'neu-surface': '#E0E5EC',
-        'neu-primary': '#6C5CE7',
-        'neu-secondary': '#00B894',
-        'neu-danger': '#FF6B6B',
-        'neu-warning': '#FDCB6E',
-        'neu-text': '#2D3436',
-        'neu-text-secondary': '#636E72',
+        // Use CSS variables for dynamic theming
+        'neu-bg': 'var(--neu-bg)',
+        'neu-surface': 'var(--neu-surface)',
+        'neu-light': 'var(--neu-light)',
+        'neu-dark': 'var(--neu-dark)',
 
-        // Dark mode colors
-        'dark-bg': '#1E1E2E',
-        'dark-surface': '#2A2A3E',
-        'dark-primary': '#7C6FE8',
-        'dark-secondary': '#00C9A7',
-        'dark-text': '#F5F5F5',
-        'dark-text-secondary': '#B2B2C8',
+        // Accent colors
+        'accent': {
+          'primary': 'var(--accent-primary)',
+          'primary-light': 'var(--accent-primary-light)',
+          'success': 'var(--accent-success)',
+          'warning': 'var(--accent-warning)',
+          'danger': 'var(--accent-danger)',
+        },
+
+        // Text colors
+        'text': {
+          'primary': 'var(--text-primary)',
+          'secondary': 'var(--text-secondary)',
+          'muted': 'var(--text-muted)',
+        },
       },
       boxShadow: {
         'neu-light': '6px 6px 12px rgba(163, 177, 198, 0.6), -6px -6px 12px rgba(255, 255, 255, 0.5)',

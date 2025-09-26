@@ -16,14 +16,14 @@ export const DeviceList: React.FC = () => {
   });
 
   return (
-    <div className="neu-card rounded-2xl p-6">
+    <div className="neu-card rounded-2xl p-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-neu-text dark:text-dark-text">
+          <h2 className="text-xl font-semibold text-text-primary">
             Connected Devices
           </h2>
-          <p className="text-sm text-neu-text-secondary dark:text-dark-text-secondary mt-1">
+          <p className="text-sm text-text-secondary mt-1 transition-opacity">
             {filteredDevices.length} device{filteredDevices.length !== 1 ? 's' : ''} found
           </p>
         </div>
@@ -74,9 +74,9 @@ export const DeviceList: React.FC = () => {
 
       {/* Loading State */}
       {scanning && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-16 h-16 rounded-full border-4 border-neu-primary/20 border-t-neu-primary animate-spin"></div>
-          <p className="mt-4 text-neu-text-secondary dark:text-dark-text-secondary">
+        <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+          <div className="spinner"></div>
+          <p className="mt-4 text-text-secondary animate-slide-up">
             Scanning network...
           </p>
         </div>
@@ -84,14 +84,19 @@ export const DeviceList: React.FC = () => {
 
       {/* No Devices State */}
       {!scanning && filteredDevices.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20">
-          <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-            <Grid className="w-12 h-12 text-gray-400" />
+        <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+          <div className="w-24 h-24 rounded-2xl neu-pressed flex items-center justify-center mb-4 animate-scale-in">
+            <div
+              className="w-12 h-12 rounded-lg"
+              style={{
+                background: `linear-gradient(145deg, var(--text-muted), var(--text-secondary))`,
+              }}
+            />
           </div>
-          <p className="text-lg font-medium text-neu-text dark:text-dark-text">
+          <p className="text-lg font-medium text-text-primary animate-slide-up">
             No devices found
           </p>
-          <p className="text-sm text-neu-text-secondary dark:text-dark-text-secondary mt-1">
+          <p className="text-sm text-text-secondary mt-1 animate-slide-up" style={{ animationDelay: '100ms' }}>
             {searchQuery ? 'Try a different search term' : filter !== 'all' ? 'Try changing the filter' : 'Make sure you\'re connected to a network'}
           </p>
         </div>
@@ -102,8 +107,8 @@ export const DeviceList: React.FC = () => {
         <div
           className={
             viewMode === 'grid'
-              ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6'
-              : 'space-y-4'
+              ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children'
+              : 'space-y-4 stagger-children'
           }
         >
           {filteredDevices.map(device => (

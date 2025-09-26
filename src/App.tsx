@@ -48,20 +48,22 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-neu-bg dark:bg-dark-bg transition-colors duration-300">
+    <div className="min-h-screen bg-[var(--neu-bg)] transition-colors duration-300">
       {/* Error Toast */}
       {error && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-up">
-          <div className="neu-card bg-neu-danger/10 border border-neu-danger/30 p-4 pr-12 relative max-w-md">
+        <div className="fixed top-4 right-4 z-50 animate-fade-in">
+          <div className="neu-card border border-red-500/30 p-4 pr-12 relative max-w-md" style={{
+            background: 'linear-gradient(145deg, var(--accent-danger)11, var(--accent-danger)22)'
+          }}>
             <button
               onClick={clearError}
-              className="absolute top-2 right-2 text-neu-danger hover:opacity-70"
+              className="absolute top-2 right-2 text-red-500 hover:text-red-600 transition-colors"
               aria-label="Close error"
             >
               ✕
             </button>
-            <p className="text-neu-danger font-medium">Error</p>
-            <p className="text-sm mt-1 text-neu-text dark:text-dark-text opacity-80">
+            <p className="font-medium" style={{ color: 'var(--accent-danger)' }}>Error</p>
+            <p className="text-sm mt-1 text-text-secondary">
               {error}
             </p>
           </div>

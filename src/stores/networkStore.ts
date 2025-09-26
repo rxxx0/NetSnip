@@ -1,5 +1,25 @@
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/core';
+// Check if we're in a Tauri context
+const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
+
+// Fallback for non-Tauri environments
+const mockInvoke = async (cmd: string, _args?: any): Promise<any> => {
+  console.warn(`NetSnip: Running in web mode - ${cmd} command not available`);
+
+  switch (cmd) {
+    case 'scan_network':
+      return [];
+    case 'get_network_info':
+      return null;
+    default:
+      throw new Error(`NetSnip requires the desktop app for network operations`);
+  }
+};
+
+// Use window.__TAURI__ if available, otherwise use mock
+const invoke = isTauri && window.__TAURI__
+  ? window.__TAURI__.invoke
+  : mockInvoke;
 
 export interface Device {
   id: string;
@@ -59,9 +79,9 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   scanNetwork: async () => {
     set({ scanning: true, error: null });
     try {
-      const devices = await invoke<Device[]>('scan_network');
+      const devices = await invoke('scan_network') as Device[];
       set({
-        devices: devices.map(d => ({
+        devices: devices.map((d: any) => ({
           ...d,
           lastSeen: new Date(d.lastSeen as any)
         })),
@@ -75,7 +95,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   getNetworkInfo: async () => {
     set({ loading: true, error: null });
     try {
-      const info = await invoke<NetworkInfo>('get_network_info');
+      const info = await invoke('get_network_info') as NetworkInfo;
       set({ networkInfo: info, loading: false });
     } catch (error) {
       set({ error: String(error), loading: false });
@@ -107,7 +127,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
       // Update device status
       set(state => ({
-        devices: state.devices.map(d =>
+        devices: state.devices.map((d: Device) =>
           d.id === deviceId ? { ...d, status: 'blocked' as const } : d
         ),
         loading: false
@@ -124,7 +144,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
       // Update device status
       set(state => ({
-        devices: state.devices.map(d =>
+        devices: state.devices.map((d: Device) =>
           d.id === deviceId ? { ...d, status: 'online' as const } : d
         ),
         loading: false
@@ -141,7 +161,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
       // Update device bandwidth limit
       set(state => ({
-        devices: state.devices.map(d =>
+        devices: state.devices.map((d: Device) =>
           d.id === deviceId
             ? { ...d, bandwidthLimit: limitMbps, status: 'limited' as const }
             : d
@@ -160,7 +180,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
       // Update device name
       set(state => ({
-        devices: state.devices.map(d =>
+        devices: state.devices.map((d: Device) =>
           d.id === deviceId ? { ...d, customName: name } : d
         ),
         loading: false
