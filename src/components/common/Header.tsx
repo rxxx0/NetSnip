@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Moon, Sun, Settings, Search, Wifi, WifiOff } from 'lucide-react';
+import { RefreshCw, Moon, Sun, Settings, Search, Wifi } from 'lucide-react';
 import { useNetworkStore } from '../../stores/networkStore';
 
 interface HeaderProps {

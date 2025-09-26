@@ -33,6 +33,10 @@ pub struct Device {
 pub async fn scan_network(state: State<'_, AppState>) -> Result<Vec<Device>, String> {
     let scanner = state.scanner.lock().await;
 
+    // Get MAC vendor information
+    let mac = "AA:BB:CC:DD:EE:FF";
+    let manufacturer = crate::utils::mac_vendor::get_manufacturer_from_mac(mac);
+
     // TODO: Implement actual network scanning
     Ok(vec![
         Device {
@@ -41,7 +45,7 @@ pub async fn scan_network(state: State<'_, AppState>) -> Result<Vec<Device>, Str
             custom_name: None,
             ip: "192.168.1.1".to_string(),
             mac: "AA:BB:CC:DD:EE:FF".to_string(),
-            manufacturer: Some("Netgear".to_string()),
+            manufacturer: manufacturer.or(Some("Netgear".to_string())),
             device_type: "router".to_string(),
             status: "online".to_string(),
             bandwidth_current: 450.0,

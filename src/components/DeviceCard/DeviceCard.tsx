@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
   Router, Smartphone, Monitor, Tablet, Wifi, HelpCircle,
-  MoreVertical, Shield, Zap, Edit2, Copy, Ban, Play
+  MoreVertical, Zap, Edit2, Copy, Ban, Play
 } from 'lucide-react';
-import { Device, useNetworkStore } from '../../stores/networkStore';
+import { type Device, useNetworkStore } from '../../stores/networkStore';
 
 interface DeviceCardProps {
   device: Device;
@@ -15,7 +15,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [customName, setCustomName] = useState(device.customName || '');
-  const [bandwidthLimit, setBandwidthLimit] = useState(device.bandwidthLimit?.toString() || '');
+  const [bandwidthLimit] = useState(device.bandwidthLimit?.toString() || '');
 
   const getDeviceIcon = () => {
     const iconProps = { className: 'w-6 h-6 text-white' };
