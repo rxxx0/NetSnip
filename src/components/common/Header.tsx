@@ -1,6 +1,7 @@
-import React from 'react';
-import { RefreshCw, Moon, Sun, Settings, Search, Wifi } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { RefreshCw, Moon, Sun, Settings, Search, Wifi, X } from 'lucide-react';
 import { useNetworkStore } from '../../stores/networkStore';
+import { useDebounce } from '../../hooks/useDebounce';
 
 interface HeaderProps {
   theme: 'light' | 'dark';
@@ -8,9 +9,16 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
-  const { scanning, scanNetwork, devices } = useNetworkStore();
+  const { scanning, scanNetwork, devices, searchQuery, setSearchQuery } = useNetworkStore();
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+  const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
+
   const onlineDevices = devices.filter(d => d.status === 'online').length;
   const blockedDevices = devices.filter(d => d.status === 'blocked').length;
+
+  useEffect(() => {
+    setSearchQuery(debouncedSearchQuery);
+  }, [debouncedSearchQuery, setSearchQuery]);
 
   return (
     <header className="mb-8">
@@ -32,9 +40,20 @@ export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-neu-text-secondary dark:text-dark-text-secondary" />
               <input
                 type="text"
-                placeholder="Search devices..."
-                className="neu-input w-full pl-10 pr-4 py-2 text-sm"
+                value={localSearchQuery}
+                onChange={(e) => setLocalSearchQuery(e.target.value)}
+                placeholder="Search devices by name, IP, MAC..."
+                className="neu-input w-full pl-10 pr-10 py-2 text-sm"
               />
+              {localSearchQuery && (
+                <button
+                  onClick={() => setLocalSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neu-text-secondary hover:text-neu-text"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 

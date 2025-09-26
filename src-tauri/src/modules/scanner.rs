@@ -27,13 +27,34 @@ impl NetworkScanner {
     }
 
     pub async fn scan_subnet(&self, subnet: &str) -> Result<Vec<String>> {
-        let network: IpNetwork = subnet.parse()?;
+        // Validate subnet format
+        let network: IpNetwork = subnet.parse()
+            .map_err(|_| anyhow::anyhow!("Invalid subnet format: {}", subnet))?;
+
+        // Check for reasonable subnet size (max /16 for safety)
+        if network.prefix() < 16 {
+            return Err(anyhow::anyhow!("Subnet too large. Maximum supported is /16"));
+        }
+
         let mut devices = Vec::new();
+        let mut count = 0;
+        const MAX_IPS: usize = 65536; // Safety limit
 
         for ip in network.iter() {
+            if count >= MAX_IPS {
+                log::warn!("Reached maximum IP scan limit of {}", MAX_IPS);
+                break;
+            }
+
             if let IpAddr::V4(ipv4) = ip {
+                // Skip network and broadcast addresses
+                if ipv4 == network.network() || ipv4 == network.broadcast() {
+                    continue;
+                }
+
                 // TODO: Send ARP request and collect responses
                 devices.push(ipv4.to_string());
+                count += 1;
             }
         }
 

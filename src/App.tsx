@@ -6,7 +6,20 @@ import { useNetworkStore } from './stores/networkStore';
 import './styles/globals.css';
 
 function App() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  // Initialize theme from localStorage or system preference
+  const getInitialTheme = (): 'light' | 'dark' => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'light' || stored === 'dark') {
+      return stored;
+    }
+    // Check system preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  };
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
   const { scanNetwork, getNetworkInfo, error, clearError } = useNetworkStore();
 
   useEffect(() => {
@@ -16,6 +29,8 @@ function App() {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    // Save theme preference
+    localStorage.setItem('theme', theme);
   }, [theme]);
 
   useEffect(() => {
@@ -25,7 +40,8 @@ function App() {
       await scanNetwork();
     };
     init();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally omit dependencies as we only want this to run once
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -40,6 +56,7 @@ function App() {
             <button
               onClick={clearError}
               className="absolute top-2 right-2 text-neu-danger hover:opacity-70"
+              aria-label="Close error"
             >
               ✕
             </button>

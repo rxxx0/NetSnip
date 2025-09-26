@@ -33,6 +33,7 @@ interface NetworkStore {
   loading: boolean;
   error: string | null;
   selectedDevice: Device | null;
+  searchQuery: string;
 
   scanNetwork: () => Promise<void>;
   getNetworkInfo: () => Promise<void>;
@@ -42,6 +43,8 @@ interface NetworkStore {
   updateDeviceName: (deviceId: string, name: string) => Promise<void>;
   selectDevice: (device: Device | null) => void;
   clearError: () => void;
+  setSearchQuery: (query: string) => void;
+  getFilteredDevices: () => Device[];
 }
 
 export const useNetworkStore = create<NetworkStore>((set, get) => ({
@@ -51,6 +54,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   loading: false,
   error: null,
   selectedDevice: null,
+  searchQuery: '',
 
   scanNetwork: async () => {
     set({ scanning: true, error: null });
@@ -172,5 +176,29 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  setSearchQuery: (query: string) => {
+    set({ searchQuery: query });
+  },
+
+  getFilteredDevices: () => {
+    const state = get();
+    const query = state.searchQuery.toLowerCase().trim();
+
+    if (!query) {
+      return state.devices;
+    }
+
+    return state.devices.filter(device => {
+      return (
+        device.name.toLowerCase().includes(query) ||
+        device.customName?.toLowerCase().includes(query) ||
+        device.ip.includes(query) ||
+        device.mac.toLowerCase().includes(query) ||
+        device.manufacturer?.toLowerCase().includes(query) ||
+        device.deviceType.toLowerCase().includes(query)
+      );
+    });
   },
 }));

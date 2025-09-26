@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Router, Smartphone, Monitor, Tablet, Wifi, HelpCircle,
-  MoreVertical, Zap, Edit2, Copy, Ban, Play
+  MoreVertical, Zap, Edit2, Copy, Ban, Play, Check
 } from 'lucide-react';
 import { type Device, useNetworkStore } from '../../stores/networkStore';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface DeviceCardProps {
   device: Device;
@@ -15,7 +16,19 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [customName, setCustomName] = useState(device.customName || '');
-  const [bandwidthLimit] = useState(device.bandwidthLimit?.toString() || '');
+  const [bandwidthLimit, setBandwidthLimit] = useState(device.bandwidthLimit?.toString() || '');
+  const [showBandwidthInput, setShowBandwidthInput] = useState(false);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Update customName when device prop changes
+  useEffect(() => {
+    setCustomName(device.customName || '');
+    setBandwidthLimit(device.bandwidthLimit?.toString() || '');
+  }, [device.customName, device.bandwidthLimit]);
+
+  // Close menu when clicking outside
+  useClickOutside(menuRef, () => setShowMenu(false), showMenu);
 
   const getDeviceIcon = () => {
     const iconProps = { className: 'w-6 h-6 text-white' };
@@ -78,9 +91,11 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     setShowMenu(false);
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = useCallback((text: string, label: string) => {
     navigator.clipboard.writeText(text);
-  };
+    setCopiedText(label);
+    setTimeout(() => setCopiedText(null), 2000);
+  }, []);
 
   if (viewMode === 'list') {
     return (
@@ -192,7 +207,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         </div>
 
         {/* Menu Button */}
-        <div className="relative">
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowMenu(!showMenu)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -203,18 +218,18 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           {showMenu && (
             <div className="absolute right-0 mt-2 w-48 neu-card rounded-lg p-2 z-10">
               <button
-                onClick={() => copyToClipboard(device.ip)}
+                onClick={() => copyToClipboard(device.ip, 'IP')}
                 className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-sm"
               >
-                <Copy className="w-4 h-4" />
-                Copy IP
+                {copiedText === 'IP' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                {copiedText === 'IP' ? 'Copied!' : 'Copy IP'}
               </button>
               <button
-                onClick={() => copyToClipboard(device.mac)}
+                onClick={() => copyToClipboard(device.mac, 'MAC')}
                 className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2 text-sm"
               >
-                <Copy className="w-4 h-4" />
-                Copy MAC
+                {copiedText === 'MAC' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                {copiedText === 'MAC' ? 'Copied!' : 'Copy MAC'}
               </button>
               <hr className="my-2 border-gray-200 dark:border-gray-700" />
               <button
@@ -296,6 +311,41 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         )}
       </div>
 
+      {/* Bandwidth Limit Input */}
+      {showBandwidthInput && device.status !== 'blocked' && (
+        <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={bandwidthLimit}
+              onChange={(e) => setBandwidthLimit(e.target.value)}
+              placeholder="MB/s"
+              className="neu-input flex-1 px-3 py-2 text-sm"
+              min="0.1"
+              step="0.1"
+            />
+            <button
+              onClick={() => {
+                handleSetBandwidthLimit();
+                setShowBandwidthInput(false);
+              }}
+              className="neu-button px-3 py-2 text-sm"
+            >
+              Apply
+            </button>
+            <button
+              onClick={() => {
+                setBandwidthLimit(device.bandwidthLimit?.toString() || '');
+                setShowBandwidthInput(false);
+              }}
+              className="neu-button px-3 py-2 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex gap-2">
         {device.status === 'blocked' ? (
@@ -317,11 +367,11 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
               Cut
             </button>
             <button
-              onClick={() => setShowMenu(true)}
+              onClick={() => setShowBandwidthInput(!showBandwidthInput)}
               className="neu-button flex-1 py-2 text-sm flex items-center justify-center gap-2"
             >
               <Zap className="w-4 h-4" />
-              Limit
+              {showBandwidthInput ? 'Cancel' : 'Limit'}
             </button>
           </>
         )}

@@ -4,11 +4,13 @@ import { DeviceCard } from '../DeviceCard/DeviceCard';
 import { useNetworkStore } from '../../stores/networkStore';
 
 export const DeviceList: React.FC = () => {
-  const { devices, scanning } = useNetworkStore();
+  const { scanning, getFilteredDevices, searchQuery } = useNetworkStore();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filter, setFilter] = useState<'all' | 'online' | 'blocked' | 'limited'>('all');
 
-  const filteredDevices = devices.filter(device => {
+  // Get filtered devices based on search and status filter
+  const searchFilteredDevices = getFilteredDevices();
+  const filteredDevices = searchFilteredDevices.filter(device => {
     if (filter === 'all') return true;
     return device.status === filter;
   });
@@ -90,7 +92,7 @@ export const DeviceList: React.FC = () => {
             No devices found
           </p>
           <p className="text-sm text-neu-text-secondary dark:text-dark-text-secondary mt-1">
-            {filter !== 'all' ? 'Try changing the filter' : 'Make sure you\'re connected to a network'}
+            {searchQuery ? 'Try a different search term' : filter !== 'all' ? 'Try changing the filter' : 'Make sure you\'re connected to a network'}
           </p>
         </div>
       )}
