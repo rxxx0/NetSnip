@@ -1,31 +1,74 @@
-import React, { useState } from 'react';
-import { Grid, List, Filter } from 'lucide-react';
-import { DeviceCard } from '../DeviceCard/DeviceCard';
-import { useNetworkStore } from '../../stores/networkStore';
+import React, { useState } from "react";
+import { Grid, List, Filter } from "lucide-react";
+import { DeviceCard } from "../DeviceCard/DeviceCard";
+import { useNetworkStore } from "../../stores/networkStore";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
 
 export const DeviceList: React.FC = () => {
   const { scanning, getFilteredDevices, searchQuery } = useNetworkStore();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filter, setFilter] = useState<'all' | 'online' | 'blocked' | 'limited'>('all');
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [filter, setFilter] = useState<
+    "all" | "online" | "blocked" | "limited"
+  >("all");
 
   // Get filtered devices based on search and status filter
   const searchFilteredDevices = getFilteredDevices();
-  const filteredDevices = searchFilteredDevices.filter(device => {
-    if (filter === 'all') return true;
+  const [orderedDevices, setOrderedDevices] = useState(searchFilteredDevices);
+
+  React.useEffect(() => {
+    setOrderedDevices(searchFilteredDevices);
+  }, [searchFilteredDevices.length]);
+
+  const filteredDevices = orderedDevices.filter((device) => {
+    if (filter === "all") return true;
     return device.status === filter;
   });
+
+  // Setup drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = filteredDevices.findIndex((d) => d.id === active.id);
+      const newIndex = filteredDevices.findIndex((d) => d.id === over?.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(filteredDevices, oldIndex, newIndex);
+        setOrderedDevices(newOrder);
+      }
+    }
+  };
 
   return (
     <div className="neu-card rounded-2xl p-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-text-primary">
+          <h2 className="text-2xl font-semibold text-text-primary">
             Connected Devices
           </h2>
-          <p className="text-sm text-text-secondary mt-1 transition-opacity">
-            {filteredDevices.length} device{filteredDevices.length !== 1 ? 's' : ''} found
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -37,9 +80,9 @@ export const DeviceList: React.FC = () => {
               className="neu-input pr-10 pl-4 py-2 text-sm appearance-none cursor-pointer"
             >
               <option value="all">All Devices</option>
-              <option value="online">Online Only</option>
-              <option value="blocked">Blocked Only</option>
-              <option value="limited">Limited Only</option>
+              <option value="online">Online</option>
+              <option value="blocked">Blocked</option>
+              <option value="limited">Limited</option>
             </select>
             <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-neu-text-secondary" />
           </div>
@@ -47,22 +90,22 @@ export const DeviceList: React.FC = () => {
           {/* View Mode Toggle */}
           <div className="flex gap-1 neu-card p-1 rounded-lg">
             <button
-              onClick={() => setViewMode('grid')}
+              onClick={() => setViewMode("grid")}
               className={`p-2 rounded-lg transition-all ${
-                viewMode === 'grid'
-                  ? 'neu-button'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                viewMode === "grid"
+                  ? "neu-button"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
               aria-label="Grid view"
             >
               <Grid className="w-4 h-4" />
             </button>
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => setViewMode("list")}
               className={`p-2 rounded-lg transition-all ${
-                viewMode === 'list'
-                  ? 'neu-button'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                viewMode === "list"
+                  ? "neu-button"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
               aria-label="List view"
             >
@@ -96,29 +139,43 @@ export const DeviceList: React.FC = () => {
           <p className="text-lg font-medium text-text-primary animate-slide-up">
             No devices found
           </p>
-          <p className="text-sm text-text-secondary mt-1 animate-slide-up" style={{ animationDelay: '100ms' }}>
-            {searchQuery ? 'Try a different search term' : filter !== 'all' ? 'Try changing the filter' : 'Make sure you\'re connected to a network'}
+          <p
+            className="text-sm text-text-secondary mt-1 animate-slide-up"
+            style={{ animationDelay: "100ms" }}
+          >
+            {searchQuery
+              ? "Try a different search term"
+              : filter !== "all"
+                ? "Try changing the filter"
+                : "Make sure you're connected to a network"}
           </p>
         </div>
       )}
 
       {/* Device Grid/List */}
       {!scanning && filteredDevices.length > 0 && (
-        <div
-          className={
-            viewMode === 'grid'
-              ? 'grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children'
-              : 'space-y-4 stagger-children'
-          }
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
         >
-          {filteredDevices.map(device => (
-            <DeviceCard
-              key={device.id}
-              device={device}
-              viewMode={viewMode}
-            />
-          ))}
-        </div>
+          <SortableContext
+            items={filteredDevices.map(d => d.id)}
+            strategy={viewMode === "grid" ? rectSortingStrategy : verticalListSortingStrategy}
+          >
+            <div
+              className={
+                viewMode === "grid"
+                  ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children"
+                  : "space-y-4 stagger-children"
+              }
+            >
+              {filteredDevices.map((device) => (
+                <DeviceCard key={device.id} device={device} viewMode={viewMode} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
     </div>
   );

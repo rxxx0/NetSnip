@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MoreVertical, Zap, Edit2, Ban, Play, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, Edit2, Ban, Play, Check } from 'lucide-react';
 import { type Device, useNetworkStore } from '../../stores/networkStore';
-import { useClickOutside } from '../../hooks/useClickOutside';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface DeviceCardProps {
   device: Device;
@@ -10,21 +11,32 @@ interface DeviceCardProps {
 
 export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
   const { cutDevice, restoreDevice, limitBandwidth, updateDeviceName } = useNetworkStore();
-  const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [customName, setCustomName] = useState(device.customName || '');
   const [bandwidthLimit, setBandwidthLimit] = useState(device.bandwidthLimit?.toString() || '');
   const [showBandwidthInput, setShowBandwidthInput] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Drag and drop setup
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: device.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   // Update customName when device prop changes
   useEffect(() => {
     setCustomName(device.customName || '');
     setBandwidthLimit(device.bandwidthLimit?.toString() || '');
   }, [device.customName, device.bandwidthLimit]);
-
-  // Close menu when clicking outside
-  useClickOutside(menuRef, () => setShowMenu(false), showMenu);
 
   const getDeviceTypeColor = () => {
     if (device.isGateway) return 'var(--accent-primary)';
@@ -75,28 +87,24 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         handleSetBandwidthLimit();
         break;
     }
-    setShowMenu(false);
   };
 
   if (viewMode === 'list') {
     return (
-      <div className="neu-card p-3 rounded-lg flex items-center justify-between hover:transform hover:scale-[1.005] transition-all">
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className="neu-card p-3 rounded-lg flex items-center justify-between hover:transform hover:scale-[1.005] transition-all cursor-move">
         <div className="flex items-center gap-3">
-          {/* Device Type Indicator */}
+          {/* Device Type Indicator - Simple colored dot */}
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            className="w-3 h-3 rounded-full"
             style={{
-              background: `${getDeviceTypeColor()}15`,
-              border: `1px solid ${getDeviceTypeColor()}30`,
+              background: getDeviceTypeColor(),
             }}
-          >
-            <div
-              className="w-4 h-4 rounded"
-              style={{
-                background: getDeviceTypeColor(),
-              }}
-            />
-          </div>
+          />
 
           {/* Info */}
           <div>
@@ -105,10 +113,14 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                 {device.customName || device.name}
               </h3>
               {device.isGateway && (
-                <span className="neu-badge text-xs">Gateway</span>
+                <span className="inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full bg-blue-500/10 text-blue-500">
+                  Gateway
+                </span>
               )}
               {device.isCurrentDevice && (
-                <span className="neu-badge text-xs">This Device</span>
+                <span className="inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full bg-purple-500/10 text-purple-500">
+                  This Device
+                </span>
               )}
               <div className={`w-1.5 h-1.5 rounded-full ${getStatusIndicator()}`}></div>
             </div>
@@ -134,20 +146,29 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           {device.status === 'blocked' ? (
             <button
               onClick={() => handleAction('restore')}
-              className="neu-button-primary flex items-center gap-1 text-xs"
+              className="neu-button-primary h-8 px-3 flex items-center gap-1 text-xs"
             >
               <Play className="w-3 h-3" />
               Restore
             </button>
           ) : (
-            <button
-              onClick={() => handleAction('cut')}
-              className="neu-button-danger flex items-center gap-1 text-xs"
-              disabled={device.isCurrentDevice}
-            >
-              <Ban className="w-3 h-3" />
-              Cut
-            </button>
+            <>
+              <button
+                onClick={() => handleAction('cut')}
+                className="neu-button-danger h-8 px-3 flex items-center gap-1 text-xs"
+                disabled={device.isCurrentDevice}
+              >
+                <Ban className="w-3 h-3" />
+                Cut
+              </button>
+              <button
+                onClick={() => setShowBandwidthInput(!showBandwidthInput)}
+                className="neu-button h-8 px-3 flex items-center gap-1 text-xs"
+              >
+                <Zap className="w-3 h-3" />
+                Limit
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -155,27 +176,25 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
   }
 
   return (
-    <div className="neu-card-hover p-4 rounded-lg relative animate-scale-in">
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="neu-card-hover p-4 rounded-lg relative animate-scale-in cursor-move">
       {/* Status Indicator */}
       <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${getStatusIndicator()}`}></div>
 
       {/* Device Header */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Simple colored indicator - no wrapper */}
           <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center"
+            className="w-3 h-3 rounded-full"
             style={{
-              background: `${getDeviceTypeColor()}15`,
-              border: `1px solid ${getDeviceTypeColor()}30`,
+              background: getDeviceTypeColor(),
             }}
-          >
-            <div
-              className="w-5 h-5 rounded"
-              style={{
-                background: getDeviceTypeColor(),
-              }}
-            />
-          </div>
+          />
           <div>
             {isEditing ? (
               <div className="flex items-center gap-1">
@@ -195,51 +214,34 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-1">
-                <h3 className="text-sm font-semibold text-text-primary">
-                  {device.customName || device.name}
-                </h3>
-                <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity">
-                  <Edit2 className="w-2.5 h-2.5" />
-                </button>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-text-primary">
+                    {device.customName || device.name}
+                  </h3>
+                  <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity">
+                    <Edit2 className="w-2.5 h-2.5" />
+                  </button>
+                  {device.isGateway && (
+                    <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-500/10 text-blue-500">
+                      Gateway
+                    </span>
+                  )}
+                  {device.isCurrentDevice && (
+                    <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-purple-500/10 text-purple-500">
+                      This Device
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-text-secondary capitalize">
+                  {device.manufacturer || device.deviceType}
+                </p>
               </div>
             )}
-            <p className="text-xs text-text-secondary capitalize">
-              {device.manufacturer || device.deviceType}
-            </p>
           </div>
         </div>
 
-        {/* Menu Button */}
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="neu-button p-1.5 rounded opacity-50 hover:opacity-100 transition-opacity"
-          >
-            <MoreVertical className="w-3 h-3" />
-          </button>
-
-          {showMenu && (
-            <div className="absolute right-0 mt-2 w-48 neu-card rounded-lg p-2 z-10 animate-fade-in">
-              <button
-                onClick={() => handleAction(device.status === 'blocked' ? 'restore' : 'cut')}
-                className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-sm transition-colors"
-                disabled={device.isCurrentDevice}
-              >
-                {device.status === 'blocked' ? 'Restore Connection' : 'Cut Connection'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowBandwidthInput(true);
-                  setShowMenu(false);
-                }}
-                className="w-full text-left px-3 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-sm transition-colors"
-              >
-                Set Bandwidth Limit
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Empty div for spacing */}
       </div>
 
       {/* Device Info */}
@@ -280,19 +282,17 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         )}
       </div>
 
-      {/* Badges */}
+      {/* Status Badges */}
       <div className="flex gap-1 mb-3">
-        {device.isGateway && (
-          <span className="neu-badge text-xs">Gateway</span>
-        )}
-        {device.isCurrentDevice && (
-          <span className="neu-badge text-xs">This Device</span>
-        )}
         {device.status === 'blocked' && (
-          <span className="neu-badge-danger text-xs">Blocked</span>
+          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/10 text-red-500">
+            Blocked
+          </span>
         )}
         {device.status === 'limited' && (
-          <span className="neu-badge-warning text-xs">Limited</span>
+          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-orange-500/10 text-orange-500">
+            Limited
+          </span>
         )}
       </div>
 
@@ -331,12 +331,12 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         </div>
       )}
 
-      {/* Action Buttons */}
+      {/* Action Buttons - Fixed height */}
       <div className="flex gap-1">
         {device.status === 'blocked' ? (
           <button
             onClick={() => handleAction('restore')}
-            className="neu-button-primary flex-1 py-1.5 text-xs flex items-center justify-center gap-1 ripple"
+            className="neu-button-primary h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
           >
             <Play className="w-3 h-3" />
             Restore
@@ -345,7 +345,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           <>
             <button
               onClick={() => handleAction('cut')}
-              className="neu-button-danger flex-1 py-1.5 text-xs flex items-center justify-center gap-1 ripple"
+              className="neu-button-danger h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
               disabled={device.isCurrentDevice}
             >
               <Ban className="w-3 h-3" />
@@ -353,7 +353,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
             </button>
             <button
               onClick={() => setShowBandwidthInput(!showBandwidthInput)}
-              className="neu-button flex-1 py-1.5 text-xs flex items-center justify-center gap-1 ripple"
+              className="neu-button h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
             >
               <Zap className="w-3 h-3" />
               {showBandwidthInput ? 'Cancel' : 'Limit'}

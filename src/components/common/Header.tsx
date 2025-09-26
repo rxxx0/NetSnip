@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Moon, Sun, Settings, Search, X } from 'lucide-react';
+import { RefreshCw, Moon, Sun, Search, X } from 'lucide-react';
 import { useNetworkStore } from '../../stores/networkStore';
 import { useDebounce } from '../../hooks/useDebounce';
+import { SettingsMenu } from './SettingsMenu';
 
 interface HeaderProps {
   theme: 'light' | 'dark';
@@ -74,13 +75,8 @@ export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
               )}
             </button>
 
-            {/* Settings */}
-            <button
-              className="neu-button p-2 rounded-lg"
-              aria-label="Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            {/* Settings Menu */}
+            <SettingsMenu />
           </div>
         </div>
       </div>

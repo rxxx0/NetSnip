@@ -22,30 +22,12 @@ export const Dashboard: React.FC = () => {
   const StatCard: React.FC<{
     label: string;
     value: string | number;
-    color?: string;
-    pulse?: boolean;
-  }> = ({ label, value, color = 'var(--accent-primary)', pulse = false }) => (
+  }> = ({ label, value }) => (
     <div className="neu-card-hover p-4 text-center transition-all">
-      <div className="mb-2">
-        <div
-          className={`w-10 h-10 rounded-lg mx-auto flex items-center justify-center ${pulse ? 'pulse-soft' : ''}`}
-          style={{
-            background: `${color}15`,
-            border: `1px solid ${color}30`,
-          }}
-        >
-          <div
-            className="w-5 h-5 rounded"
-            style={{
-              background: color,
-            }}
-          />
-        </div>
-      </div>
-      <p className="text-2xl font-bold text-text-primary mb-0.5">
+      <p className="text-2xl font-semibold text-text-primary">
         {value}
       </p>
-      <p className="text-xs font-medium text-text-secondary">
+      <p className="text-xs text-text-secondary mt-1">
         {label}
       </p>
     </div>
@@ -72,26 +54,21 @@ export const Dashboard: React.FC = () => {
         <StatCard
           label="Total Devices"
           value={stats.totalDevices}
-          color="var(--accent-primary)"
-        />
-
-        <StatCard
-          label="Online Now"
-          value={stats.onlineDevices}
-          color="var(--accent-success)"
-          pulse={stats.onlineDevices > 0}
         />
 
         <StatCard
           label="Blocked"
           value={stats.blockedDevices}
-          color="var(--accent-danger)"
         />
 
         <StatCard
-          label="Bandwidth"
+          label="Limited"
+          value={stats.limitedDevices}
+        />
+
+        <StatCard
+          label="Speed"
           value={`${stats.totalBandwidth} MB/s`}
-          color="var(--accent-warning)"
         />
       </div>
 
@@ -108,21 +85,6 @@ export const Dashboard: React.FC = () => {
                 Discovering devices on your network
               </p>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Warning for blocked devices */}
-      {stats.blockedDevices > 0 && !scanning && (
-        <div className="mt-4 neu-card p-3 animate-fade-in" style={{
-          background: 'rgba(239, 68, 68, 0.05)',
-          borderColor: 'rgba(239, 68, 68, 0.2)',
-        }}>
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
-            <p className="text-sm font-medium text-text-primary">
-              {stats.blockedDevices} device{stats.blockedDevices !== 1 ? 's' : ''} blocked
-            </p>
           </div>
         </div>
       )}
