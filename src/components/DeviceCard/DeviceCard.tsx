@@ -3,6 +3,7 @@ import { Zap, Edit2, Ban, Play, Check, GripVertical } from 'lucide-react';
 import { type Device, useNetworkStore } from '../../stores/networkStore';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useNotification } from '../../hooks/useNotification';
 
 interface DeviceCardProps {
   device: Device;
@@ -11,6 +12,7 @@ interface DeviceCardProps {
 
 export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
   const { cutDevice, restoreDevice, limitBandwidth, updateDeviceName } = useNetworkStore();
+  const { showNotification } = useNotification();
   const [isEditing, setIsEditing] = useState(false);
   const [customName, setCustomName] = useState(device.customName || '');
   const [bandwidthLimit, setBandwidthLimit] = useState(device.bandwidthLimit?.toString() || '');
@@ -72,6 +74,26 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
   const handleAction = async (action: 'cut' | 'restore' | 'limit') => {
     switch (action) {
       case 'cut':
+        // Check if it's a special device that needs confirmation
+        if (device.isCurrentDevice) {
+          const confirmed = await showNotification({
+            type: 'confirm',
+            title: 'Disconnect Current Device?',
+            message: 'Warning: You are about to disconnect your own device. This will interrupt your network connection. Are you sure?',
+            confirmText: 'Disconnect',
+            cancelText: 'Cancel',
+          });
+          if (!confirmed) return;
+        } else if (device.isGateway) {
+          const confirmed = await showNotification({
+            type: 'confirm',
+            title: 'Disconnect Gateway?',
+            message: 'Warning: Disconnecting the gateway will affect ALL devices on the network. Are you absolutely sure?',
+            confirmText: 'Disconnect Gateway',
+            cancelText: 'Cancel',
+          });
+          if (!confirmed) return;
+        }
         await cutDevice(device.id);
         break;
       case 'restore':
@@ -180,7 +202,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                 e.stopPropagation();
                 handleAction('restore');
               }}
-              className="neu-button-primary h-9 px-3 flex items-center justify-center gap-1 text-xs"
+              className="neu-button-primary h-8 px-3 flex items-center justify-center gap-1 text-xs"
             >
               <Play className="w-3 h-3" />
               Restore
@@ -192,7 +214,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                   e.stopPropagation();
                   handleAction('cut');
                 }}
-                className="neu-button-danger h-9 px-3 flex items-center justify-center gap-1 text-xs"
+                className="neu-button-danger h-8 px-3 flex items-center justify-center gap-1 text-xs"
                 disabled={device.isCurrentDevice}
               >
                 <Ban className="w-3 h-3" />
@@ -203,7 +225,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                   e.stopPropagation();
                   setShowBandwidthInput(!showBandwidthInput);
                 }}
-                className="neu-button h-9 px-3 flex items-center justify-center gap-1 text-xs"
+                className="neu-button h-8 px-3 flex items-center justify-center gap-1 text-xs"
               >
                 <Zap className="w-3 h-3" />
                 Limit
@@ -219,7 +241,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     <div
       ref={setNodeRef}
       style={style}
-      className="neu-card-hover p-4 h-[280px] rounded-lg relative animate-scale-in flex flex-col sortable-item">
+      className="neu-card-hover p-4 rounded-lg relative animate-scale-in flex flex-col sortable-item">
       {/* Drag Handle */}
       <div
         {...attributes}
@@ -230,7 +252,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
       </div>
 
       {/* Device Header */}
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-3">
           {/* Device Type Indicator - Square shape */}
           <div
@@ -292,7 +314,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
       </div>
 
       {/* Device Info */}
-      <div className="space-y-1 mb-3">
+      <div className="space-y-1 mb-2">
         <div className="flex justify-between items-center">
           <span className="text-xs text-text-secondary">IP</span>
           <span className="text-xs font-mono text-text-primary">{device.ip}</span>
@@ -306,7 +328,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
       </div>
 
       {/* Bandwidth Bar */}
-      <div className="mb-3">
+      <div className="mb-2">
         <div className="flex justify-between items-center mb-1">
           <span className="text-xs text-text-secondary">Bandwidth</span>
           <span className="text-xs font-bold text-text-primary">
@@ -326,20 +348,6 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           <p className="text-xs text-text-secondary mt-0.5">
             Limited: {device.bandwidthLimit} MB/s
           </p>
-        )}
-      </div>
-
-      {/* Status Badges */}
-      <div className="flex gap-1 mb-3">
-        {device.status === 'blocked' && (
-          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-red-500/10 text-red-500">
-            Blocked
-          </span>
-        )}
-        {device.status === 'limited' && (
-          <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-orange-500/10 text-orange-500">
-            Limited
-          </span>
         )}
       </div>
 
@@ -386,7 +394,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
               e.stopPropagation();
               handleAction('restore');
             }}
-            className="neu-button-primary h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
+            className="neu-button-primary h-8 flex-1 text-xs flex items-center justify-center gap-1 ripple"
           >
             <Play className="w-3 h-3" />
             Restore
@@ -398,7 +406,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                 e.stopPropagation();
                 handleAction('cut');
               }}
-              className="neu-button-danger h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
+              className="neu-button-danger h-8 flex-1 text-xs flex items-center justify-center gap-1 ripple"
               disabled={device.isCurrentDevice}
             >
               <Ban className="w-3 h-3" />
@@ -409,7 +417,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                 e.stopPropagation();
                 setShowBandwidthInput(!showBandwidthInput);
               }}
-              className="neu-button h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
+              className="neu-button h-8 flex-1 text-xs flex items-center justify-center gap-1 ripple"
             >
               <Zap className="w-3 h-3" />
               {showBandwidthInput ? 'Cancel' : 'Limit'}

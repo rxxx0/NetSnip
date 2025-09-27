@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
                             {device.ip} • {device.mac}
                           </div>
                         </div>
-                        <div className={`text-xs px-2 py-0.5 rounded-full ${
+                        <div className={`text-xs px-2 py-0.5 rounded-full capitalize ${
                           device.status === 'blocked' ? 'bg-red-500/10 text-red-500' :
                           device.status === 'limited' ? 'bg-yellow-500/10 text-yellow-500' :
                           'bg-green-500/10 text-green-500'

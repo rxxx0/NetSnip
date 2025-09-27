@@ -1,6 +1,7 @@
-import React, { useState } from "react";
-import { Grid, List, Filter } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Grid, List } from "lucide-react";
 import { DeviceCard } from "../DeviceCard/DeviceCard";
+import { FilterDropdown } from "../common/FilterDropdown";
 import { useNetworkStore } from "../../stores/networkStore";
 import {
   DndContext,
@@ -31,17 +32,18 @@ export const DeviceList: React.FC = () => {
     setOrderedDevices(searchFilteredDevices);
   }, [searchFilteredDevices.length]);
 
-  const filteredDevices = orderedDevices.filter((device) => {
-    if (filter === "all") return true;
-    return device.status === filter;
-  });
+  const filteredDevices = useMemo(() => {
+    return orderedDevices.filter((device) => {
+      if (filter === "all") return true;
+      return device.status === filter;
+    });
+  }, [orderedDevices, filter]);
 
   // Setup drag and drop sensors with activation constraints
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Minimum drag distance before activation
-        delay: 250, // Delay before drag starts to distinguish from clicks
+        distance: 5, // Minimum drag distance before activation
       },
     }),
     useSensor(KeyboardSensor, {
@@ -75,19 +77,7 @@ export const DeviceList: React.FC = () => {
 
         <div className="flex items-center gap-3">
           {/* Filter Dropdown */}
-          <div className="relative">
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as 'all' | 'online' | 'blocked' | 'limited')}
-              className="neu-select appearance-none pr-10 pl-4 py-2 text-sm cursor-pointer"
-            >
-              <option value="all">All Devices</option>
-              <option value="online">Online</option>
-              <option value="blocked">Blocked</option>
-              <option value="limited">Limited</option>
-            </select>
-            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400" />
-          </div>
+          <FilterDropdown value={filter} onChange={setFilter} />
 
           {/* View Mode Toggle */}
           <div className="flex gap-1 neu-card p-1 rounded-lg">
@@ -168,8 +158,8 @@ export const DeviceList: React.FC = () => {
             <div
               className={
                 viewMode === "grid"
-                  ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children"
-                  : "space-y-4 stagger-children"
+                  ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 transition-all duration-300"
+                  : "space-y-4 transition-all duration-300"
               }
             >
               {filteredDevices.map((device) => (

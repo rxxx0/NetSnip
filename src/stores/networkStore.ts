@@ -204,24 +204,6 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   },
 
   cutDevice: async (deviceId: string) => {
-    const device = get().devices.find(d => d.id === deviceId);
-
-    // Safety check for current device
-    if (device?.isCurrentDevice) {
-      const confirmed = window.confirm(
-        'Warning: You are about to disconnect your own device. This will interrupt your network connection. Are you sure?'
-      );
-      if (!confirmed) return;
-    }
-
-    // Safety check for gateway
-    if (device?.isGateway) {
-      const confirmed = window.confirm(
-        'Warning: Disconnecting the gateway will affect ALL devices on the network. Are you absolutely sure?'
-      );
-      if (!confirmed) return;
-    }
-
     set({ loading: true, error: null });
     try {
       await invoke('cut_device', { deviceId });
