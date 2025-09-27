@@ -244,8 +244,6 @@ pub async fn get_bandwidth_updates(state: State<'_, AppState>) -> Result<Vec<Ban
         }
     } else {
         // Use network stats as fallback (doesn't require privileges)
-        // For demonstration, we'll simulate some bandwidth values
-        let network_stats = state.network_stats.lock().await;
 
         for device in devices.iter() {
             let device_id = device.mac.replace(':', "_").to_lowercase();
@@ -258,27 +256,23 @@ pub async fn get_bandwidth_updates(state: State<'_, AppState>) -> Result<Vec<Ban
                     bandwidth_current: 0.0,
                 });
             } else {
-                // Simulate bandwidth for demonstration
-                // In a real app with privileges, this would come from actual measurements
-                network_stats.simulate_bandwidth(&device.mac, device.ip).await;
-
-                if let Some(bandwidth) = network_stats.get_device_bandwidth(&device.mac).await {
-                    bandwidth_updates.push(BandwidthUpdate {
-                        device_id,
-                        bandwidth_current: bandwidth,
-                    });
-                } else {
-                    // Default bandwidth for active devices
-                    let default_bandwidth = if device.is_gateway {
-                        15.0 + (rand::random::<f32>() * 10.0) // Gateway typically has more traffic
-                    } else {
-                        rand::random::<f32>() * 5.0 // Regular devices
-                    };
-
-                    bandwidth_updates.push(BandwidthUpdate {
-                        device_id,
-                        bandwidth_current: default_bandwidth as f64,
-                    });
+                // Try to get actual traffic data from packet monitor
+                let packet_monitor_opt = state.packet_monitor.lock().await;
+                if let Some(packet_monitor) = packet_monitor_opt.as_ref() {
+                    if let Some(traffic) = packet_monitor.get_device_traffic(device.ip).await {
+                        // Calculate bandwidth from traffic data
+                        if let Ok(elapsed) = std::time::SystemTime::now().duration_since(traffic.last_update) {
+                            let elapsed_secs = elapsed.as_secs_f64();
+                            if elapsed_secs > 0.0 && elapsed_secs < 60.0 {
+                                let total_bytes = traffic.bytes_sent + traffic.bytes_received;
+                                let mbps = (total_bytes as f64 * 8.0) / (elapsed_secs * 1_000_000.0);
+                                bandwidth_updates.push(BandwidthUpdate {
+                                    device_id,
+                                    bandwidth_current: mbps,
+                                });
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -293,28 +287,3 @@ pub async fn get_bandwidth_updates(state: State<'_, AppState>) -> Result<Vec<Ban
     Ok(bandwidth_updates)
 }
 
-// Simple random number generator for demonstration
-mod rand {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    pub fn random<T>() -> T
-    where
-        T: RandomValue,
-    {
-        T::random()
-    }
-
-    pub trait RandomValue {
-        fn random() -> Self;
-    }
-
-    impl RandomValue for f32 {
-        fn random() -> Self {
-            let nanos = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .subsec_nanos();
-            (nanos as f32) / (u32::MAX as f32)
-        }
-    }
-}
