@@ -1,9 +1,9 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Sqlite, SqlitePool};
+use sqlx::{FromRow, Pool, Sqlite, SqlitePool};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DeviceRecord {
     pub id: String,
     pub mac: String,
@@ -12,8 +12,8 @@ pub struct DeviceRecord {
     pub custom_name: Option<String>,
     pub manufacturer: Option<String>,
     pub device_type: String,
-    pub first_seen: DateTime<Utc>,
-    pub last_seen: DateTime<Utc>,
+    pub first_seen: i64,  // Unix timestamp
+    pub last_seen: i64,   // Unix timestamp
     pub total_bytes: i64,
     pub is_blocked: bool,
     pub bandwidth_limit: Option<f64>,
@@ -53,8 +53,8 @@ impl Database {
                 custom_name TEXT,
                 manufacturer TEXT,
                 device_type TEXT NOT NULL,
-                first_seen DATETIME NOT NULL,
-                last_seen DATETIME NOT NULL,
+                first_seen INTEGER NOT NULL,
+                last_seen INTEGER NOT NULL,
                 total_bytes INTEGER DEFAULT 0,
                 is_blocked BOOLEAN DEFAULT FALSE,
                 bandwidth_limit REAL
@@ -70,7 +70,7 @@ impl Database {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
                 device_id TEXT NOT NULL,
-                timestamp DATETIME NOT NULL,
+                timestamp INTEGER NOT NULL,
                 details TEXT,
                 FOREIGN KEY (device_id) REFERENCES devices(id)
             )
@@ -120,8 +120,8 @@ impl Database {
         .bind(&device.custom_name)
         .bind(&device.manufacturer)
         .bind(&device.device_type)
-        .bind(&device.first_seen)
-        .bind(&device.last_seen)
+        .bind(device.first_seen)
+        .bind(device.last_seen)
         .bind(device.total_bytes)
         .bind(device.is_blocked)
         .bind(device.bandwidth_limit)
@@ -132,11 +132,10 @@ impl Database {
     }
 
     pub async fn get_device_by_mac(&self, mac: &str) -> Result<Option<DeviceRecord>> {
-        let device = sqlx::query_as!(
-            DeviceRecord,
-            "SELECT * FROM devices WHERE mac = ?",
-            mac
+        let device = sqlx::query_as::<_, DeviceRecord>(
+            "SELECT * FROM devices WHERE mac = ?"
         )
+        .bind(mac)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -144,9 +143,11 @@ impl Database {
     }
 
     pub async fn get_all_devices(&self) -> Result<Vec<DeviceRecord>> {
-        let devices = sqlx::query_as!(DeviceRecord, "SELECT * FROM devices ORDER BY last_seen DESC")
-            .fetch_all(&self.pool)
-            .await?;
+        let devices = sqlx::query_as::<_, DeviceRecord>(
+            "SELECT * FROM devices ORDER BY last_seen DESC"
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(devices)
     }
@@ -160,7 +161,7 @@ impl Database {
         )
         .bind(&event.event_type)
         .bind(&event.device_id)
-        .bind(&event.timestamp)
+        .bind(event.timestamp.timestamp())
         .bind(&event.details)
         .execute(&self.pool)
         .await?;

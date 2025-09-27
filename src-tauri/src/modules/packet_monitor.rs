@@ -162,7 +162,7 @@ impl PacketMonitor {
 
     /// Process a captured packet
     async fn process_packet(
-        ethernet: &EthernetPacket,
+        ethernet: &EthernetPacket<'_>,
         traffic_stats: &Arc<Mutex<HashMap<Ipv4Addr, DeviceTraffic>>>,
         local_ip: Ipv4Addr,
     ) {

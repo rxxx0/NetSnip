@@ -13,7 +13,7 @@ use tokio::time::{interval, sleep};
 pub struct ArpController {
     interface: NetworkInterface,
     our_mac: [u8; 6],
-    gateway_ip: Option<Ipv4Addr>,
+    pub gateway_ip: Option<Ipv4Addr>,
     gateway_mac: Option<[u8; 6]>,
     active_spoofs: Arc<Mutex<HashMap<Ipv4Addr, ArpSpoof>>>,
     spoofing_active: Arc<Mutex<bool>>,
@@ -80,7 +80,7 @@ impl ArpController {
             target_ip,
             target_mac: target_mac.clone(),
             gateway_ip,
-            gateway_mac: gateway_mac_str,
+            gateway_mac: gateway_mac_str.clone(),
             active: true,
             cut_time: SystemTime::now(),
         });

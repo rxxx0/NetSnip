@@ -83,8 +83,8 @@ pub fn fingerprint_device(device: &crate::commands::network::Device) -> String {
 
     // Additional heuristics based on hostname patterns
     if device_type == "unknown" {
-        if let Some(ref name) = device.name {
-            let lower_name = name.to_lowercase();
+        if !device.name.is_empty() {
+            let lower_name = device.name.to_lowercase();
 
             if lower_name.contains("android") || lower_name.contains("galaxy") || lower_name.contains("pixel") {
                 return "phone".to_string();

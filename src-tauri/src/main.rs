@@ -6,7 +6,7 @@ mod utils;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tauri::State;
+use tauri::{Manager, State};
 use modules::scanner::NetworkScanner;
 use modules::arp_controller::ArpController;
 use modules::bandwidth::BandwidthController;
