@@ -104,7 +104,10 @@ export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
           <div className="flex items-center gap-1">
             {/* Refresh Button */}
             <button
-              onClick={() => scanNetwork()}
+              onClick={() => {
+                console.log('Refresh button clicked, calling scanNetwork()');
+                scanNetwork();
+              }}
               disabled={scanning}
               className={`neu-button p-2 rounded-lg ${scanning ? 'neu-pressed' : ''}`}
               aria-label="Refresh network scan"

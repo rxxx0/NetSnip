@@ -186,6 +186,7 @@ pub async fn remove_bandwidth_limit(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BandwidthUpdate {
     pub device_id: String,
     pub bandwidth_current: f64,

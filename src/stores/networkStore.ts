@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
+
 // Check if we're in a Tauri context
 const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
 
@@ -33,10 +35,8 @@ const mockInvoke = async (cmd: string, _args?: any): Promise<any> => {
   }
 };
 
-// Use window.__TAURI__ if available, otherwise use mock
-const invoke = isTauri && window.__TAURI__
-  ? window.__TAURI__.invoke
-  : mockInvoke;
+// Use Tauri invoke if available, otherwise use mock
+const invoke = isTauri ? tauriInvoke : mockInvoke;
 
 export interface Device {
   id: string;
@@ -103,9 +103,15 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   pollingInterval: null,
 
   scanNetwork: async () => {
+    console.log('scanNetwork called in store');
+    console.log('isTauri:', isTauri);
+    console.log('window.__TAURI__:', window.__TAURI__);
+
     set({ scanning: true, error: null });
     try {
+      console.log('Calling invoke with scan_network');
       const devices = await invoke('scan_network') as Device[];
+      console.log('Received devices:', devices);
       set({
         devices: devices.map((d: any) => ({
           ...d,
@@ -114,6 +120,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
         scanning: false
       });
     } catch (error) {
+      console.error('Error scanning network:', error);
       set({ error: String(error), scanning: false });
     }
   },

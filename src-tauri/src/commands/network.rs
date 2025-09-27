@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NetworkInfo {
     pub gateway_ip: String,
     pub gateway_mac: String,
@@ -13,6 +14,7 @@ pub struct NetworkInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Device {
     pub id: String,
     pub name: String,
@@ -31,6 +33,9 @@ pub struct Device {
 
 #[tauri::command]
 pub async fn scan_network(state: State<'_, AppState>) -> Result<Vec<Device>, String> {
+    println!("scan_network command called");
+    log::info!("scan_network command called");
+
     let scanner = state.scanner.lock().await;
 
     log::info!("Starting network scan...");
@@ -78,6 +83,7 @@ pub async fn scan_network(state: State<'_, AppState>) -> Result<Vec<Device>, Str
         .collect();
 
     log::info!("Network scan complete. Found {} devices", devices.len());
+    println!("Returning {} devices to frontend", devices.len());
 
     Ok(devices)
 }

@@ -37,6 +37,7 @@ function App() {
   useEffect(() => {
     // Initial network scan
     const init = async () => {
+      console.log('App initialized, starting network scan');
       await getNetworkInfo();
       await scanNetwork();
       // Start bandwidth polling after initial scan
