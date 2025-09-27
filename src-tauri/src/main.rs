@@ -96,6 +96,13 @@ fn main() {
             });
 
             app.manage(app_state);
+
+            // Show the window after setup
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

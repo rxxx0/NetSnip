@@ -122,6 +122,7 @@ impl NetworkScanner {
         // Calculate the network range
         let network = IpNetwork::new(IpAddr::V4(local_ip), subnet_mask)?;
 
+        println!("DEBUG: Starting network scan for network: {}", network);
         log::info!("Scanning network: {}", network);
 
         // Get the gateway first

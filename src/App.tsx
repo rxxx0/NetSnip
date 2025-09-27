@@ -21,7 +21,7 @@ function App() {
   };
 
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
-  const { scanNetwork, getNetworkInfo, error, clearError, startPolling, stopPolling } = useNetworkStore();
+  const { devices, scanNetwork, getNetworkInfo, error, clearError, startPolling, stopPolling } = useNetworkStore();
 
   useEffect(() => {
     // Apply theme to document
@@ -35,18 +35,22 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    // Initial network scan
-    const init = async () => {
-      console.log('App initialized, starting network scan');
-      await getNetworkInfo();
-      await scanNetwork();
-      // Start bandwidth polling after initial scan
-      startPolling();
-    };
-    init();
+    // Initialize network scan on app start
+    const timer = setTimeout(async () => {
+      console.log('App initialized, starting network scan...');
+      try {
+        await getNetworkInfo();
+        await scanNetwork();
+        // Start bandwidth polling after initial scan
+        startPolling();
+      } catch (error) {
+        console.error('Failed to initialize network scan:', error);
+      }
+    }, 1000); // Give app time to initialize
 
-    // Cleanup: stop polling when component unmounts
+    // Cleanup
     return () => {
+      clearTimeout(timer);
       stopPolling();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,9 +60,47 @@ function App() {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
+  // Add state for scan status
+  const [scanStatus, setScanStatus] = useState<string>('Not started');
+
+  // Add a test button for debugging
+  const testScan = async () => {
+    setScanStatus('Starting network scan...');
+    console.log('Test scan clicked');
+    try {
+      console.log('Calling scanNetwork from Tauri...');
+      await scanNetwork();
+      setScanStatus('✅ Scan completed! Check devices below.');
+      console.log('Scan completed successfully');
+    } catch (error) {
+      console.error('Scan error:', error);
+      setScanStatus(`❌ Scan error: ${error}`);
+      // Check if error suggests we're not in Tauri
+      if (String(error).includes('not available') || String(error).includes('Failed to fetch')) {
+        alert('Not running in Tauri window. Make sure you\'re using the NetSnip app, not a browser.');
+      } else {
+        alert('Error scanning: ' + error);
+      }
+    }
+  };
+
   return (
     <NotificationProvider>
       <div className="min-h-screen bg-[var(--neu-bg)] transition-colors duration-300">
+        {/* Debug Test Button and Status */}
+        <div className="fixed top-4 left-4 z-50 space-y-2">
+          <button
+            onClick={testScan}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg"
+          >
+            🔍 Test Scan Network
+          </button>
+          <div className="bg-black/80 text-white px-4 py-2 rounded-lg">
+            <div className="text-xs font-mono">Status: {scanStatus}</div>
+            <div className="text-xs font-mono">Devices found: {devices.length}</div>
+          </div>
+        </div>
+
         {/* Error Toast */}
         {error && (
           <div className="fixed top-4 right-4 z-50 animate-fade-in">

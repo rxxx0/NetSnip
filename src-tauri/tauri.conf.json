@@ -22,11 +22,16 @@
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "transparent": false,
-        "decorations": true
+        "decorations": true,
+        "visible": true,
+        "center": true,
+        "focus": true,
+        "skipTaskbar": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "devCsp": null
     }
   },
   "bundle": {

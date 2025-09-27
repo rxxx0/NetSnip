@@ -1,42 +1,5 @@
 import { create } from 'zustand';
-import { invoke as tauriInvoke } from '@tauri-apps/api/core';
-
-// Check if we're in a Tauri context
-const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
-
-// Fallback for non-Tauri environments
-const mockInvoke = async (cmd: string, _args?: any): Promise<any> => {
-  switch (cmd) {
-    case 'scan_network':
-      return [];
-    case 'get_network_info':
-      return {
-        gatewayIp: '',
-        gatewayMac: '',
-        localIp: '',
-        localMac: '',
-        subnetMask: '',
-        interfaceName: ''
-      };
-    case 'get_bandwidth_updates':
-      return [];
-    case 'cut_device':
-      return { success: false, message: 'Not available in web mode' };
-    case 'restore_device':
-      return { success: false, message: 'Not available in web mode' };
-    case 'limit_bandwidth':
-      return { success: false, message: 'Not available in web mode' };
-    case 'remove_bandwidth_limit':
-      return { success: false, message: 'Not available in web mode' };
-    case 'update_device_name':
-      return null;
-    default:
-      return null;
-  }
-};
-
-// Use Tauri invoke if available, otherwise use mock
-const invoke = isTauri ? tauriInvoke : mockInvoke;
+import { invoke } from '@tauri-apps/api/core';
 
 export interface Device {
   id: string;
@@ -104,13 +67,10 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
   scanNetwork: async () => {
     console.log('scanNetwork called in store');
-    console.log('isTauri:', isTauri);
-    console.log('window.__TAURI__:', window.__TAURI__);
-
     set({ scanning: true, error: null });
     try {
-      console.log('Calling invoke with scan_network');
-      const devices = await invoke('scan_network') as Device[];
+      console.log('Calling Tauri invoke with scan_network');
+      const devices = await invoke<Device[]>('scan_network');
       console.log('Received devices:', devices);
       set({
         devices: devices.map((d: any) => ({
@@ -128,7 +88,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   getNetworkInfo: async () => {
     set({ loading: true, error: null });
     try {
-      const info = await invoke('get_network_info') as NetworkInfo;
+      const info = await invoke<NetworkInfo>('get_network_info');
       set({ networkInfo: info, loading: false });
     } catch (error) {
       set({ error: String(error), loading: false });
@@ -282,21 +242,21 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
   updateBandwidth: async () => {
     try {
-      // Use actual backend command if available
-      if (isTauri && window.__TAURI__) {
-        const updates = await invoke('get_bandwidth_updates') as Array<{
-          device_id: string;
-          bandwidth_current: number;
-        }>;
+      // Try to get bandwidth updates from backend
+      try {
+        const updates = await invoke<Array<{
+          deviceId: string;
+          bandwidthCurrent: number;
+        }>>('get_bandwidth_updates');
 
         set(state => ({
           devices: state.devices.map(device => {
             // Find bandwidth update for this device
-            const update = updates.find(u => u.device_id === device.id);
+            const update = updates.find(u => u.deviceId === device.id);
 
             if (update) {
               // Apply bandwidth limits
-              let newBandwidth = Math.max(0, update.bandwidth_current);
+              let newBandwidth = Math.max(0, update.bandwidthCurrent);
 
               if (device.status === 'blocked') {
                 newBandwidth = 0;
@@ -318,9 +278,9 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
             return device;
           })
         }));
-      } else {
-        // In development mode without Tauri, bandwidth stays at 0
-        console.log('Development mode: No bandwidth updates available');
+      } catch (invokeError) {
+        // Not in Tauri environment, skip bandwidth updates
+        console.log('Bandwidth updates not available (not in Tauri environment)');
       }
     } catch (error) {
       console.error('Failed to update bandwidth:', error);

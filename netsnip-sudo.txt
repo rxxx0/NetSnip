@@ -1,0 +1,15 @@
+# NetSnip passwordless sudo configuration
+# This allows NetSnip to run with network privileges without requiring a password
+#
+# To install this configuration:
+# 1. Run: sudo visudo -f /etc/sudoers.d/netsnip
+# 2. Add the following line (replace 'rishi' with your username):
+
+rishi ALL=(ALL) NOPASSWD: /Users/rishi/NetSnip/target/debug/netsnip
+rishi ALL=(ALL) NOPASSWD: /Users/rishi/NetSnip/target/release/netsnip
+rishi ALL=(ALL) NOPASSWD: /usr/bin/npm
+rishi ALL=(ALL) NOPASSWD: /usr/local/bin/npm
+rishi ALL=(ALL) NOPASSWD: /opt/homebrew/bin/npm
+
+# Note: For security, we're only allowing specific binaries to run without password.
+# After adding this configuration, you can run NetSnip without entering your password.

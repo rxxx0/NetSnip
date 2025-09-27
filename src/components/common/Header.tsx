@@ -104,9 +104,16 @@ export const Header: React.FC<HeaderProps> = ({ theme, onToggleTheme }) => {
           <div className="flex items-center gap-1">
             {/* Refresh Button */}
             <button
-              onClick={() => {
-                console.log('Refresh button clicked, calling scanNetwork()');
-                scanNetwork();
+              onClick={async () => {
+                console.log('Refresh button clicked');
+                console.log('window.__TAURI__ available:', !!window.__TAURI__);
+                console.log('window.__TAURI__ value:', window.__TAURI__);
+                try {
+                  await scanNetwork();
+                  console.log('Scan completed');
+                } catch (error) {
+                  console.error('Scan failed:', error);
+                }
               }}
               disabled={scanning}
               className={`neu-button p-2 rounded-lg ${scanning ? 'neu-pressed' : ''}`}

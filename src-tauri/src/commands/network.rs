@@ -90,6 +90,9 @@ pub async fn scan_network(state: State<'_, AppState>) -> Result<Vec<Device>, Str
 
 #[tauri::command]
 pub async fn get_network_info(state: State<'_, AppState>) -> Result<NetworkInfo, String> {
+    println!("get_network_info command called");
+    log::info!("get_network_info command called");
+
     let scanner = state.scanner.lock().await;
 
     // Get actual interface info
