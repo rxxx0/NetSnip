@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Edit2, Ban, Play, Check } from 'lucide-react';
+import { Edit2, Check } from 'lucide-react';
 import { type Device, useNetworkStore } from '../../stores/networkStore';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -69,6 +69,14 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     if (!isNaN(limit) && limit > 0) {
       limitBandwidth(device.id, limit);
     }
+  };
+
+  // Format bandwidth with dynamic units
+  const formatBandwidth = (mbps: number): string => {
+    if (mbps >= 1000) {
+      return `${(mbps / 1000).toFixed(1)} GB/s`;
+    }
+    return `${mbps.toFixed(1)} MB/s`;
   };
 
   const handleAction = async (action: 'cut' | 'restore' | 'limit') => {
@@ -180,26 +188,27 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         <div className="flex items-center gap-2">
           <div className="text-right mr-2">
             <p className="text-sm font-bold text-text-primary">
-              {device.bandwidthCurrent.toFixed(1)} MB/s
+              {formatBandwidth(device.bandwidthCurrent)}
             </p>
             {device.bandwidthLimit && (
-              <p className="text-xs text-text-secondary">
-                Limited: {device.bandwidthLimit}
+              <p className="text-xs text-yellow-500">
+                Limited: {formatBandwidth(device.bandwidthLimit)}
               </p>
             )}
           </div>
 
           {device.status === 'blocked' ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAction('restore');
-              }}
-              className="neu-button-primary h-8 px-3 flex items-center justify-center gap-1 text-xs"
-            >
-              <Play className="w-3 h-3" />
-              Restore
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAction('restore');
+                }}
+                className="neu-button-primary h-8 px-6 flex items-center justify-center text-xs flex-1"
+              >
+                Restore
+              </button>
+            </div>
           ) : (
             <>
               <button
@@ -207,10 +216,9 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                   e.stopPropagation();
                   handleAction('cut');
                 }}
-                className="neu-button-danger h-8 px-3 flex items-center justify-center gap-1 text-xs"
+                className="neu-button-danger h-8 px-3 flex items-center justify-center text-xs"
                 disabled={device.isCurrentDevice}
               >
-                <Ban className="w-3 h-3" />
                 Cut
               </button>
               <button
@@ -218,9 +226,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                   e.stopPropagation();
                   setShowBandwidthInput(!showBandwidthInput);
                 }}
-                className="neu-button h-8 px-3 flex items-center justify-center gap-1 text-xs"
+                className="neu-button h-8 px-3 flex items-center justify-center text-xs"
               >
-                <Zap className="w-3 h-3" />
                 Limit
               </button>
             </>
@@ -325,7 +332,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         <div className="flex justify-between items-center mb-1">
           <span className="text-xs text-text-secondary">Bandwidth</span>
           <span className="text-xs font-bold text-text-primary">
-            {device.bandwidthCurrent.toFixed(1)} MB/s
+            {formatBandwidth(device.bandwidthCurrent)}
           </span>
         </div>
         <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -338,8 +345,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           />
         </div>
         {device.bandwidthLimit && (
-          <p className="text-xs text-text-secondary mt-0.5">
-            Limited: {device.bandwidthLimit} MB/s
+          <p className="text-xs text-yellow-500 mt-0.5">
+            Limited: {formatBandwidth(device.bandwidthLimit)}
           </p>
         )}
       </div>
@@ -390,9 +397,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
               e.stopPropagation();
               handleAction('restore');
             }}
-            className="neu-button-primary h-8 flex-1 text-xs flex items-center justify-center gap-1 ripple"
+            className="neu-button-primary h-8 flex-1 text-xs flex items-center justify-center ripple"
           >
-            <Play className="w-3 h-3" />
             Restore
           </button>
         ) : (
@@ -402,10 +408,9 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                 e.stopPropagation();
                 handleAction('cut');
               }}
-              className="neu-button-danger h-8 flex-1 text-xs flex items-center justify-center gap-1 ripple"
+              className="neu-button-danger h-8 flex-1 text-xs flex items-center justify-center ripple"
               disabled={device.isCurrentDevice}
             >
-              <Ban className="w-3 h-3" />
               Cut
             </button>
             <button
@@ -413,9 +418,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                 e.stopPropagation();
                 setShowBandwidthInput(!showBandwidthInput);
               }}
-              className="neu-button h-8 flex-1 text-xs flex items-center justify-center gap-1 ripple"
+              className="neu-button h-8 flex-1 text-xs flex items-center justify-center ripple"
             >
-              <Zap className="w-3 h-3" />
               {showBandwidthInput ? 'Cancel' : 'Limit'}
             </button>
           </>

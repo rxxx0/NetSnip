@@ -18,10 +18,6 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onClick }) => (
   </button>
 );
 
-const Separator: React.FC = () => (
-  <div className="my-1.5 h-px bg-border-light" />
-);
-
 export const SettingsMenu: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -45,7 +41,6 @@ export const SettingsMenu: React.FC = () => {
           <MenuItem icon={<Bell />} label="Notifications" />
           <MenuItem icon={<Database />} label="Data & Privacy" />
           <MenuItem icon={<HelpCircle />} label="Help & Support" />
-          <Separator />
           <MenuItem icon={<LogOut />} label="Sign Out" />
         </div>
       )}

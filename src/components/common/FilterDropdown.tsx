@@ -46,7 +46,7 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({ value, onChange 
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-1 w-full min-w-[140px] neu-card rounded-lg p-1 animate-slide-down z-50">
+        <div className="absolute right-0 mt-0.5 w-full min-w-[140px] neu-card rounded-lg p-1 animate-slide-down z-50">
           {options.map(option => (
             <button
               key={option.value}

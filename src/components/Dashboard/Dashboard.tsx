@@ -1,21 +1,33 @@
-import React, { useMemo } from 'react';
-import { useNetworkStore } from '../../stores/networkStore';
+import React, { useMemo } from "react";
+import { useNetworkStore } from "../../stores/networkStore";
 
 export const Dashboard: React.FC = () => {
-  const { devices, networkInfo, scanning, filter, setFilter } = useNetworkStore();
+  const { devices, networkInfo, scanning, filter, setFilter } =
+    useNetworkStore();
+
+  // Format bandwidth with dynamic units
+  const formatBandwidth = (mbps: number): string => {
+    if (mbps >= 1000) {
+      return `${(mbps / 1000).toFixed(1)} GB/s`;
+    }
+    return `${mbps.toFixed(1)} MB/s`;
+  };
 
   const stats = useMemo(() => {
-    const online = devices.filter(d => d.status === 'online').length;
-    const blocked = devices.filter(d => d.status === 'blocked').length;
-    const limited = devices.filter(d => d.status === 'limited').length;
-    const totalBandwidth = devices.reduce((acc, d) => acc + d.bandwidthCurrent, 0);
+    const online = devices.filter((d) => d.status === "online").length;
+    const blocked = devices.filter((d) => d.status === "blocked").length;
+    const limited = devices.filter((d) => d.status === "limited").length;
+    const totalBandwidth = devices.reduce(
+      (acc, d) => acc + d.bandwidthCurrent,
+      0
+    );
 
     return {
       totalDevices: devices.length,
       onlineDevices: online,
       blockedDevices: blocked,
       limitedDevices: limited,
-      totalBandwidth: totalBandwidth.toFixed(1),
+      totalBandwidth: totalBandwidth,
     };
   }, [devices]);
 
@@ -29,22 +41,22 @@ export const Dashboard: React.FC = () => {
     <button
       onClick={onClick}
       className={`neu-card p-4 text-center transition-all cursor-pointer w-full ${
-        isActive ? 'neu-pressed' : 'hover:-translate-y-0.5'
+        isActive ? "neu-pressed" : "hover:-translate-y-0.5"
       }`}
     >
-      <p className={`text-2xl font-semibold transition-colors ${
-        isActive ? activeColor : 'text-text-primary'
-      }`}>
+      <p
+        className={`text-2xl font-semibold transition-colors ${
+          isActive ? activeColor : "text-text-primary"
+        }`}
+      >
         {value}
       </p>
-      <p className="text-xs text-text-secondary mt-1">
-        {label}
-      </p>
+      <p className="text-xs text-text-secondary mt-1">{label}</p>
     </button>
   );
 
-  const handleFilterClick = (filterType: 'all' | 'blocked' | 'limited') => {
-    setFilter(filter === filterType ? 'all' : filterType);
+  const handleFilterClick = (filterType: "all" | "blocked" | "limited") => {
+    setFilter(filter === filterType ? "all" : filterType);
   };
 
   return (
@@ -58,8 +70,10 @@ export const Dashboard: React.FC = () => {
             <span className="font-mono">
               {networkInfo.interfaceName} • {networkInfo.localIp}
             </span>
+          ) : scanning ? (
+            "Scanning network..."
           ) : (
-            scanning ? 'Scanning network...' : 'No network info available'
+            "No network info available"
           )}
         </p>
       </div>
@@ -68,31 +82,28 @@ export const Dashboard: React.FC = () => {
         <StatCard
           label="Total Devices"
           value={stats.totalDevices}
-          isActive={filter === 'all'}
-          onClick={() => handleFilterClick('all')}
+          isActive={filter === "all"}
+          onClick={() => handleFilterClick("all")}
           activeColor="text-green-500"
         />
 
         <StatCard
           label="Blocked"
           value={stats.blockedDevices}
-          isActive={filter === 'blocked'}
-          onClick={() => handleFilterClick('blocked')}
+          isActive={filter === "blocked"}
+          onClick={() => handleFilterClick("blocked")}
           activeColor="text-red-500"
         />
 
         <StatCard
           label="Limited"
           value={stats.limitedDevices}
-          isActive={filter === 'limited'}
-          onClick={() => handleFilterClick('limited')}
+          isActive={filter === "limited"}
+          onClick={() => handleFilterClick("limited")}
           activeColor="text-yellow-500"
         />
 
-        <StatCard
-          label="Speed"
-          value={`${stats.totalBandwidth} MB/s`}
-        />
+        <StatCard label="Bandwidth" value={formatBandwidth(stats.totalBandwidth)} />
       </div>
 
       {/* Network Status Banner */}

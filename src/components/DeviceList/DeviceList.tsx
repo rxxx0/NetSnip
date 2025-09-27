@@ -26,22 +26,70 @@ export const DeviceList: React.FC = () => {
 
   // Get filtered devices based on search and status filter
   const searchFilteredDevices = getFilteredDevices();
-  const [orderedDevices, setOrderedDevices] = useState(searchFilteredDevices);
+
+  // Load saved order from localStorage
+  const loadSavedOrder = () => {
+    const savedOrder = localStorage.getItem('deviceOrder');
+    if (savedOrder) {
+      try {
+        const orderIds = JSON.parse(savedOrder) as string[];
+        // Sort devices according to saved order
+        const orderedDevices = [...searchFilteredDevices].sort((a, b) => {
+          const aIndex = orderIds.indexOf(a.id);
+          const bIndex = orderIds.indexOf(b.id);
+          // If neither is in saved order, maintain original order
+          if (aIndex === -1 && bIndex === -1) return 0;
+          // If only one is in saved order, put it first
+          if (aIndex === -1) return 1;
+          if (bIndex === -1) return -1;
+          // Both are in saved order, sort by saved index
+          return aIndex - bIndex;
+        });
+        return orderedDevices;
+      } catch (e) {
+        return searchFilteredDevices;
+      }
+    }
+    return searchFilteredDevices;
+  };
+
+  const [orderedDevices, setOrderedDevices] = useState(loadSavedOrder());
 
   React.useEffect(() => {
     // Update orderedDevices when searchFilteredDevices changes
     // This ensures the grid updates when device status changes
     setOrderedDevices(prevOrdered => {
-      // Preserve the custom order if possible
-      const newDevices = searchFilteredDevices.filter(
-        device => !prevOrdered.some(od => od.id === device.id)
-      );
-      const updatedOrdered = prevOrdered.map(device =>
-        searchFilteredDevices.find(sd => sd.id === device.id) || device
-      ).filter(device =>
-        searchFilteredDevices.some(sd => sd.id === device.id)
-      );
-      return [...updatedOrdered, ...newDevices];
+      const savedOrder = localStorage.getItem('deviceOrder');
+      let orderIds: string[] = [];
+
+      if (savedOrder) {
+        try {
+          orderIds = JSON.parse(savedOrder);
+        } catch (e) {
+          orderIds = [];
+        }
+      }
+
+      // Sort based on saved order
+      const newOrder = [...searchFilteredDevices].sort((a, b) => {
+        const aIndex = orderIds.indexOf(a.id);
+        const bIndex = orderIds.indexOf(b.id);
+
+        if (aIndex === -1 && bIndex === -1) {
+          // Neither in saved order, check if they were in previous order
+          const prevAIndex = prevOrdered.findIndex(d => d.id === a.id);
+          const prevBIndex = prevOrdered.findIndex(d => d.id === b.id);
+          if (prevAIndex !== -1 && prevBIndex !== -1) {
+            return prevAIndex - prevBIndex;
+          }
+          return 0;
+        }
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+      });
+
+      return newOrder;
     });
   }, [searchFilteredDevices]);
 
@@ -74,6 +122,10 @@ export const DeviceList: React.FC = () => {
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = arrayMove(filteredDevices, oldIndex, newIndex);
         setOrderedDevices(newOrder);
+
+        // Save the new order to localStorage
+        const orderIds = newOrder.map(device => device.id);
+        localStorage.setItem('deviceOrder', JSON.stringify(orderIds));
       }
     }
   };
@@ -81,12 +133,10 @@ export const DeviceList: React.FC = () => {
   return (
     <div className="neu-card rounded-2xl p-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-2xl font-semibold text-text-primary">
-            Connected Devices
-          </h2>
-        </div>
+      <div className="flex items-end justify-between mb-4">
+        <h2 className="text-2xl font-semibold text-text-primary">
+          Connected Devices
+        </h2>
 
         <div className="flex items-center gap-3">
           {/* Filter Dropdown */}
