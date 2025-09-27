@@ -151,43 +151,26 @@ pub struct BandwidthUpdate {
 
 #[tauri::command]
 pub async fn get_bandwidth_updates(state: State<'_, AppState>) -> Result<Vec<BandwidthUpdate>, String> {
-    // For now, return simulated bandwidth updates
-    // In a real implementation, this would query actual network statistics
+    // Get actual bandwidth data from the controller
+    let bandwidth_controller = state.bandwidth_controller.lock().await;
 
-    use rand::Rng;
-    let mut rng = rand::thread_rng();
+    // Get all bandwidth updates from monitoring
+    let updates = bandwidth_controller.get_all_bandwidth_updates().await;
 
-    // Simulate bandwidth updates for known devices
-    let updates = vec![
-        BandwidthUpdate {
-            device_id: "gateway".to_string(),
-            bandwidth_current: 500.0 + rng.gen_range(-50.0..50.0),
-        },
-        BandwidthUpdate {
-            device_id: "device-1".to_string(),
-            bandwidth_current: 45.0 + rng.gen_range(-10.0..10.0),
-        },
-        BandwidthUpdate {
-            device_id: "device-2".to_string(),
-            bandwidth_current: 3.0 + rng.gen_range(-1.0..1.0),
-        },
-        BandwidthUpdate {
-            device_id: "device-3".to_string(),
-            bandwidth_current: 18.0 + rng.gen_range(-5.0..5.0),
-        },
-        BandwidthUpdate {
-            device_id: "device-5".to_string(),
-            bandwidth_current: 0.3 + rng.gen_range(-0.1..0.1),
-        },
-        BandwidthUpdate {
-            device_id: "device-6".to_string(),
-            bandwidth_current: 35.0 + rng.gen_range(-8.0..8.0),
-        },
-        BandwidthUpdate {
-            device_id: "device-7".to_string(),
-            bandwidth_current: 12.0 + rng.gen_range(-3.0..3.0),
-        },
-    ];
+    // Convert to BandwidthUpdate format
+    let bandwidth_updates: Vec<BandwidthUpdate> = updates
+        .into_iter()
+        .map(|(device_id, bandwidth_current)| BandwidthUpdate {
+            device_id,
+            bandwidth_current,
+        })
+        .collect();
 
-    Ok(updates)
+    if bandwidth_updates.is_empty() {
+        log::debug!("No bandwidth data available yet");
+    } else {
+        log::info!("Returning {} bandwidth updates", bandwidth_updates.len());
+    }
+
+    Ok(bandwidth_updates)
 }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant, SystemTime};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -12,9 +12,21 @@ pub struct PacketQueue {
     pub last_refill: Instant,
 }
 
+#[derive(Debug, Clone)]
+pub struct DeviceBandwidth {
+    pub device_id: String,
+    pub ip_address: IpAddr,
+    pub bytes_sent: u64,
+    pub bytes_received: u64,
+    pub last_measurement: SystemTime,
+    pub current_bandwidth_mbps: f64,
+}
+
 pub struct BandwidthController {
     packet_queues: Arc<Mutex<HashMap<IpAddr, PacketQueue>>>,
     statistics: Arc<Mutex<HashMap<IpAddr, BandwidthStats>>>,
+    device_bandwidth: Arc<Mutex<HashMap<String, DeviceBandwidth>>>,
+    measurement_interval: Duration,
 }
 
 #[derive(Debug, Clone)]
@@ -30,6 +42,8 @@ impl BandwidthController {
         Self {
             packet_queues: Arc::new(Mutex::new(HashMap::new())),
             statistics: Arc::new(Mutex::new(HashMap::new())),
+            device_bandwidth: Arc::new(Mutex::new(HashMap::new())),
+            measurement_interval: Duration::from_secs(20), // 20-second measurement window
         }
     }
 
@@ -115,5 +129,64 @@ impl BandwidthController {
     pub async fn reset_statistics(&self) {
         let mut stats = self.statistics.lock().await;
         stats.clear();
+    }
+
+    pub async fn update_device_bandwidth(&self, device_id: String, ip: IpAddr, bytes_sent: u64, bytes_received: u64) -> Result<()> {
+        let mut bandwidth_map = self.device_bandwidth.lock().await;
+
+        let now = SystemTime::now();
+
+        if let Some(device) = bandwidth_map.get_mut(&device_id) {
+            // Calculate bandwidth based on time elapsed
+            if let Ok(elapsed) = now.duration_since(device.last_measurement) {
+                let elapsed_secs = elapsed.as_secs_f64();
+                if elapsed_secs > 0.0 {
+                    let bytes_diff = (bytes_sent + bytes_received) - (device.bytes_sent + device.bytes_received);
+                    let mbps = (bytes_diff as f64 * 8.0) / (elapsed_secs * 1_000_000.0);
+
+                    device.bytes_sent = bytes_sent;
+                    device.bytes_received = bytes_received;
+                    device.last_measurement = now;
+                    device.current_bandwidth_mbps = mbps;
+                }
+            }
+        } else {
+            // First measurement for this device
+            bandwidth_map.insert(device_id.clone(), DeviceBandwidth {
+                device_id,
+                ip_address: ip,
+                bytes_sent,
+                bytes_received,
+                last_measurement: now,
+                current_bandwidth_mbps: 0.0,
+            });
+        }
+
+        Ok(())
+    }
+
+    pub async fn get_device_bandwidth(&self, device_id: &str) -> Option<f64> {
+        let bandwidth_map = self.device_bandwidth.lock().await;
+        bandwidth_map.get(device_id).map(|d| d.current_bandwidth_mbps)
+    }
+
+    pub async fn get_all_bandwidth_updates(&self) -> Vec<(String, f64)> {
+        let bandwidth_map = self.device_bandwidth.lock().await;
+        bandwidth_map.iter()
+            .map(|(id, device)| (id.clone(), device.current_bandwidth_mbps))
+            .collect()
+    }
+
+    /// Start monitoring system network statistics
+    /// This would integrate with platform-specific network monitoring APIs
+    pub async fn start_bandwidth_monitoring(&self) -> Result<()> {
+        // TODO: Implement actual network monitoring
+        // This would involve:
+        // 1. Reading /proc/net/dev on Linux
+        // 2. Using Windows Performance Counters on Windows
+        // 3. Using system_profiler or netstat on macOS
+
+        log::info!("Bandwidth monitoring started (implementation pending)");
+        Ok(())
     }
 }

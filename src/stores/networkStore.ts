@@ -2,114 +2,27 @@ import { create } from 'zustand';
 // Check if we're in a Tauri context
 const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
 
-// Fallback for non-Tauri environments with mock data
+// Fallback for non-Tauri environments - returns empty/default data
 const mockInvoke = async (cmd: string, _args?: any): Promise<any> => {
   switch (cmd) {
     case 'scan_network':
-      // Return mock devices for testing
-      return [
-        {
-          id: 'gateway',
-          name: 'Netgear Nighthawk',
-          customName: 'Home Router',
-          ip: '192.168.1.1',
-          mac: 'E0:46:9A:2B:1C:3D',
-          manufacturer: 'Netgear Inc.',
-          deviceType: 'router',
-          status: 'online',
-          bandwidthCurrent: 523.7,
-          bandwidthLimit: null,
-          isGateway: true,
-          isCurrentDevice: false,
-          lastSeen: new Date().toISOString(),
-        },
-        {
-          id: 'device-1',
-          name: 'MacBook Pro',
-          customName: 'My Laptop',
-          ip: '192.168.1.105',
-          mac: '3C:22:FB:91:45:2E',
-          manufacturer: 'Apple, Inc.',
-          deviceType: 'computer',
-          status: 'online',
-          bandwidthCurrent: 45.3,
-          bandwidthLimit: null,
-          isGateway: false,
-          isCurrentDevice: true,
-          lastSeen: new Date().toISOString(),
-        },
-        {
-          id: 'device-2',
-          name: 'iPhone 15 Pro',
-          customName: null,
-          ip: '192.168.1.112',
-          mac: 'A8:51:AB:C3:9F:7B',
-          manufacturer: 'Apple, Inc.',
-          deviceType: 'phone',
-          status: 'online',
-          bandwidthCurrent: 2.8,
-          bandwidthLimit: 10.0,
-          isGateway: false,
-          isCurrentDevice: false,
-          lastSeen: new Date().toISOString(),
-        },
-        {
-          id: 'device-3',
-          name: 'Samsung Smart TV',
-          customName: 'Living Room TV',
-          ip: '192.168.1.134',
-          mac: '58:3A:FD:2E:91:C4',
-          manufacturer: 'Samsung Electronics',
-          deviceType: 'tv',
-          status: 'online',
-          bandwidthCurrent: 18.4,
-          bandwidthLimit: null,
-          isGateway: false,
-          isCurrentDevice: false,
-          lastSeen: new Date().toISOString(),
-        },
-        {
-          id: 'device-4',
-          name: 'iPad Air',
-          customName: null,
-          ip: '192.168.1.156',
-          mac: 'DC:56:E7:12:8A:3F',
-          manufacturer: 'Apple, Inc.',
-          deviceType: 'tablet',
-          status: 'blocked',
-          bandwidthCurrent: 0.0,
-          bandwidthLimit: null,
-          isGateway: false,
-          isCurrentDevice: false,
-          lastSeen: new Date(Date.now() - 300000).toISOString(),
-        },
-        {
-          id: 'device-5',
-          name: 'Echo Dot',
-          customName: 'Alexa',
-          ip: '192.168.1.178',
-          mac: 'B4:7C:9C:8E:2D:1A',
-          manufacturer: 'Amazon Technologies Inc.',
-          deviceType: 'iot',
-          status: 'online',
-          bandwidthCurrent: 0.3,
-          bandwidthLimit: null,
-          isGateway: false,
-          isCurrentDevice: false,
-          lastSeen: new Date().toISOString(),
-        },
-      ];
+      // Return empty array - no devices discovered in development mode
+      return [];
     case 'get_network_info':
+      // Return placeholder network info
       return {
-        gatewayIp: '192.168.1.1',
-        gatewayMac: 'E0:46:9A:2B:1C:3D',
-        localIp: '192.168.1.105',
-        localMac: '3C:22:FB:91:45:2E',
-        subnetMask: '255.255.255.0',
-        interfaceName: 'en0'
+        gatewayIp: '',
+        gatewayMac: '',
+        localIp: '',
+        localMac: '',
+        subnetMask: '',
+        interfaceName: ''
       };
+    case 'get_bandwidth_updates':
+      // Return empty array - no bandwidth updates in development mode
+      return [];
     default:
-      console.log(`Mock: ${cmd} command called with args:`, _args);
+      console.log(`Development mode: ${cmd} command called with args:`, _args);
       return null;
   }
 };
@@ -393,46 +306,8 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           })
         }));
       } else {
-        // Fallback to simulation for non-Tauri environments
-        set(state => ({
-          devices: state.devices.map(device => {
-            // Don't update blocked devices
-            if (device.status === 'blocked') {
-              return { ...device, bandwidthCurrent: 0 };
-            }
-
-            // Simulate realistic bandwidth fluctuations over a 20-second average
-            const currentBandwidth = device.bandwidthCurrent;
-
-            // Smaller variations for 20-second averages (more stable)
-            const maxChange = currentBandwidth * 0.15; // Max 15% change for averaged data
-            const change = (Math.random() - 0.5) * maxChange;
-            let newBandwidth = Math.max(0.1, currentBandwidth + change); // Keep minimum at 0.1 for online devices
-
-            // Apply bandwidth limit if set
-            if (device.bandwidthLimit && newBandwidth > device.bandwidthLimit) {
-              // Stay closer to limit with averaged data
-              newBandwidth = device.bandwidthLimit * (0.85 + Math.random() * 0.1);
-            }
-
-            // Add realistic patterns for 20-second averages
-            if (device.deviceType === 'tv' && newBandwidth > 0) {
-              // TVs have very steady bandwidth when streaming (averaged)
-              newBandwidth = currentBandwidth * (0.97 + Math.random() * 0.06);
-            } else if (device.deviceType === 'phone' || device.deviceType === 'tablet') {
-              // Mobile devices still show some variation but less than instantaneous
-              newBandwidth = currentBandwidth * (0.85 + Math.random() * 0.3);
-            } else if (device.deviceType === 'iot') {
-              // IoT devices typically have very low, steady bandwidth
-              newBandwidth = Math.min(1, currentBandwidth * (0.9 + Math.random() * 0.2));
-            }
-
-            return {
-              ...device,
-              bandwidthCurrent: parseFloat(newBandwidth.toFixed(1))
-            };
-          })
-        }));
+        // In development mode without Tauri, bandwidth stays at 0
+        console.log('Development mode: No bandwidth updates available');
       }
     } catch (error) {
       console.error('Failed to update bandwidth:', error);
