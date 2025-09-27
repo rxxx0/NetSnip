@@ -29,8 +29,21 @@ export const DeviceList: React.FC = () => {
   const [orderedDevices, setOrderedDevices] = useState(searchFilteredDevices);
 
   React.useEffect(() => {
-    setOrderedDevices(searchFilteredDevices);
-  }, [searchFilteredDevices.length]);
+    // Update orderedDevices when searchFilteredDevices changes
+    // This ensures the grid updates when device status changes
+    setOrderedDevices(prevOrdered => {
+      // Preserve the custom order if possible
+      const newDevices = searchFilteredDevices.filter(
+        device => !prevOrdered.some(od => od.id === device.id)
+      );
+      const updatedOrdered = prevOrdered.map(device =>
+        searchFilteredDevices.find(sd => sd.id === device.id) || device
+      ).filter(device =>
+        searchFilteredDevices.some(sd => sd.id === device.id)
+      );
+      return [...updatedOrdered, ...newDevices];
+    });
+  }, [searchFilteredDevices]);
 
   const filteredDevices = useMemo(() => {
     return orderedDevices.filter((device) => {

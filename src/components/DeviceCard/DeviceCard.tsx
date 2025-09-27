@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Edit2, Ban, Play, Check, GripVertical } from 'lucide-react';
+import { Zap, Edit2, Ban, Play, Check } from 'lucide-react';
 import { type Device, useNetworkStore } from '../../stores/networkStore';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -79,7 +79,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           const confirmed = await showNotification({
             type: 'confirm',
             title: 'Disconnect Current Device?',
-            message: 'Warning: You are about to disconnect your own device. This will interrupt your network connection. Are you sure?',
+            message: 'You are about to disconnect your own device. This will interrupt your network connection.',
             confirmText: 'Disconnect',
             cancelText: 'Cancel',
           });
@@ -88,7 +88,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           const confirmed = await showNotification({
             type: 'confirm',
             title: 'Disconnect Gateway?',
-            message: 'Warning: Disconnecting the gateway will affect ALL devices on the network. Are you absolutely sure?',
+            message: 'Disconnecting the gateway will affect ALL devices on the network. Are you absolutely sure?',
             confirmText: 'Disconnect Gateway',
             cancelText: 'Cancel',
           });
@@ -110,16 +110,9 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
       <div
         ref={setNodeRef}
         style={style}
-        className="neu-card p-3 rounded-lg flex items-center justify-between hover:transform hover:scale-[1.005] transition-all sortable-item">
-        {/* Drag Handle */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-move p-1 mr-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-        >
-          <GripVertical className="w-4 h-4 text-gray-400" />
-        </div>
-
+        {...attributes}
+        {...listeners}
+        className="neu-card p-3 rounded-lg flex items-center justify-between hover:transform hover:scale-[1.005] transition-all sortable-item cursor-move">
         <div className="flex items-center gap-3 flex-1">
           {/* Device Type Indicator - Square shape */}
           <div
@@ -241,16 +234,9 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     <div
       ref={setNodeRef}
       style={style}
-      className="neu-card-hover p-4 rounded-lg relative animate-scale-in flex flex-col sortable-item">
-      {/* Drag Handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute top-2 right-2 cursor-move p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded z-10"
-      >
-        <GripVertical className="w-4 h-4 text-gray-400" />
-      </div>
-
+      {...attributes}
+      {...listeners}
+      className="neu-card-hover p-4 rounded-lg relative animate-scale-in flex flex-col sortable-item cursor-move">
       {/* Device Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-3">
@@ -268,14 +254,21 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                   type="text"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
                   className="neu-input px-2 py-1 text-xs"
                   autoFocus
                   onKeyPress={(e) => e.key === 'Enter' && handleSaveName()}
                 />
-                <button onClick={handleSaveName} className="text-green-500">
+                <button onClick={(e) => {
+                  e.stopPropagation();
+                  handleSaveName();
+                }} className="text-green-500">
                   <Check className="w-3 h-3" />
                 </button>
-                <button onClick={() => setIsEditing(false)} className="text-red-500 text-xs">
+                <button onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditing(false);
+                }} className="text-red-500 text-xs">
                   ✕
                 </button>
               </div>
@@ -359,13 +352,15 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
               type="number"
               value={bandwidthLimit}
               onChange={(e) => setBandwidthLimit(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
               placeholder="MB/s"
               className="neu-input flex-1 px-3 py-2 text-sm"
               min="0.1"
               step="0.1"
             />
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 handleSetBandwidthLimit();
                 setShowBandwidthInput(false);
               }}
@@ -374,7 +369,8 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
               Apply
             </button>
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setBandwidthLimit(device.bandwidthLimit?.toString() || '');
                 setShowBandwidthInput(false);
               }}

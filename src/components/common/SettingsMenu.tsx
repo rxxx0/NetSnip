@@ -19,7 +19,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onClick }) => (
 );
 
 const Separator: React.FC = () => (
-  <div className="mt-1 mb-1 h-px bg-border-light" />
+  <div className="my-1.5 h-px bg-border-light" />
 );
 
 export const SettingsMenu: React.FC = () => {

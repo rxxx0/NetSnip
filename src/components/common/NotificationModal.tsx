@@ -84,7 +84,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm animate-fade-in"
+        className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-md animate-fade-in"
         style={{ animationDuration: '200ms' }}
         onClick={type !== 'confirm' ? onClose : undefined}
       />
@@ -92,41 +92,50 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
       {/* Modal */}
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
         <div
-          className="neu-card max-w-md w-full p-6 animate-scale-in relative"
+          className="neu-card max-w-md w-full p-8 animate-scale-in relative overflow-hidden"
           style={{
             animationDuration: '300ms',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.4)',
           }}
         >
+          {/* Background accent */}
+          <div
+            className="absolute top-0 left-0 w-full h-1"
+            style={{
+              background: getAccentColor(),
+            }}
+          />
+
           {/* Icon and Title */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex flex-col items-center text-center mb-6">
             <div
-              className="w-12 h-12 rounded-full flex items-center justify-center"
+              className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
               style={{
-                background: `${getAccentColor()}20`,
+                background: `linear-gradient(135deg, ${getAccentColor()}15, ${getAccentColor()}25)`,
+                boxShadow: `0 8px 16px ${getAccentColor()}20`,
               }}
             >
               {getIcon()}
             </div>
-            <h3 className="text-lg font-semibold text-text-primary flex-1">
+            <h3 className="text-xl font-semibold text-text-primary">
               {title}
             </h3>
           </div>
 
           {/* Message */}
-          <p className="text-sm text-text-secondary mb-6 leading-relaxed">
+          <p className="text-sm text-text-secondary text-center mb-8 leading-relaxed px-4">
             {message}
           </p>
 
           {/* Actions */}
-          <div className="flex gap-3 justify-end">
+          <div className="flex gap-3">
             {type === 'confirm' && (
               <button
                 onClick={() => {
                   if (onCancel) onCancel();
                   onClose();
                 }}
-                className="neu-button px-4 py-2 text-sm"
+                className="neu-button flex-1 py-2.5 text-sm font-medium hover:transform hover:scale-[1.02] transition-all"
               >
                 {cancelText}
               </button>
@@ -138,12 +147,16 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
                 }
                 onClose();
               }}
-              className="neu-button-primary px-4 py-2 text-sm"
+              className="flex-1 py-2.5 text-sm font-medium text-white rounded-lg transition-all hover:transform hover:scale-[1.02]"
               style={{
                 background: type === 'error' ? 'var(--accent-danger)' :
                            type === 'warning' || type === 'confirm' ? 'var(--accent-warning)' :
                            type === 'success' ? 'var(--accent-success)' :
                            'var(--accent-primary)',
+                boxShadow: `0 4px 12px ${type === 'error' ? 'var(--accent-danger)' :
+                           type === 'warning' || type === 'confirm' ? 'var(--accent-warning)' :
+                           type === 'success' ? 'var(--accent-success)' :
+                           'var(--accent-primary)'}40`,
               }}
               autoFocus
             >
