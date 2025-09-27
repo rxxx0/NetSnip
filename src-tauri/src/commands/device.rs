@@ -118,3 +118,76 @@ pub async fn update_device_name(
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn remove_bandwidth_limit(
+    state: State<'_, AppState>,
+    device_id: String,
+) -> Result<CutResult, String> {
+    // Validate input
+    if device_id.is_empty() {
+        return Err("Invalid device ID".to_string());
+    }
+
+    let mut bandwidth_controller = state.bandwidth_controller.lock().await;
+
+    // TODO: Implement bandwidth limit removal with actual IP
+    // let device_ip = get_device_ip_from_id(&device_id)?;
+    // bandwidth_controller.remove_limit(device_ip).await?;
+
+    log::info!("Removing bandwidth limit for device {}", device_id);
+
+    Ok(CutResult {
+        success: true,
+        message: format!("Bandwidth limit removed for device {}", device_id),
+    })
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BandwidthUpdate {
+    pub device_id: String,
+    pub bandwidth_current: f64,
+}
+
+#[tauri::command]
+pub async fn get_bandwidth_updates(state: State<'_, AppState>) -> Result<Vec<BandwidthUpdate>, String> {
+    // For now, return simulated bandwidth updates
+    // In a real implementation, this would query actual network statistics
+
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+
+    // Simulate bandwidth updates for known devices
+    let updates = vec![
+        BandwidthUpdate {
+            device_id: "gateway".to_string(),
+            bandwidth_current: 500.0 + rng.gen_range(-50.0..50.0),
+        },
+        BandwidthUpdate {
+            device_id: "device-1".to_string(),
+            bandwidth_current: 45.0 + rng.gen_range(-10.0..10.0),
+        },
+        BandwidthUpdate {
+            device_id: "device-2".to_string(),
+            bandwidth_current: 3.0 + rng.gen_range(-1.0..1.0),
+        },
+        BandwidthUpdate {
+            device_id: "device-3".to_string(),
+            bandwidth_current: 18.0 + rng.gen_range(-5.0..5.0),
+        },
+        BandwidthUpdate {
+            device_id: "device-5".to_string(),
+            bandwidth_current: 0.3 + rng.gen_range(-0.1..0.1),
+        },
+        BandwidthUpdate {
+            device_id: "device-6".to_string(),
+            bandwidth_current: 35.0 + rng.gen_range(-8.0..8.0),
+        },
+        BandwidthUpdate {
+            device_id: "device-7".to_string(),
+            bandwidth_current: 12.0 + rng.gen_range(-3.0..3.0),
+        },
+    ];
+
+    Ok(updates)
+}

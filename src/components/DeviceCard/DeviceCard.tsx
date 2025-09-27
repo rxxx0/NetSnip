@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Edit2, Check } from 'lucide-react';
 import { type Device, useNetworkStore } from '../../stores/networkStore';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useNotification } from '../../hooks/useNotification';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 interface DeviceCardProps {
   device: Device;
@@ -11,12 +12,13 @@ interface DeviceCardProps {
 }
 
 export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
-  const { cutDevice, restoreDevice, limitBandwidth, updateDeviceName } = useNetworkStore();
+  const { cutDevice, restoreDevice, limitBandwidth, updateDeviceName, removeBandwidthLimit } = useNetworkStore();
   const { showNotification } = useNotification();
   const [isEditing, setIsEditing] = useState(false);
   const [customName, setCustomName] = useState(device.customName || '');
-  const [bandwidthLimit, setBandwidthLimit] = useState(device.bandwidthLimit?.toString() || '');
-  const [showBandwidthInput, setShowBandwidthInput] = useState(false);
+  const [bandwidthLimit, setBandwidthLimit] = useState('');
+  const [showLimitInput, setShowLimitInput] = useState(false);
+  const limitRef = useRef<HTMLDivElement>(null);
 
   // Drag and drop setup
   const {
@@ -34,12 +36,18 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Close limit input when clicking outside
+  useClickOutside(limitRef, () => {
+    if (showLimitInput) {
+      setShowLimitInput(false);
+    }
+  }, showLimitInput);
+
   // Update customName when device prop changes and load from localStorage
   useEffect(() => {
     const storedName = localStorage.getItem(`device-name-${device.id}`);
     setCustomName(storedName || device.customName || '');
-    setBandwidthLimit(device.bandwidthLimit?.toString() || '');
-  }, [device.id, device.customName, device.bandwidthLimit]);
+  }, [device.id, device.customName]);
 
   const getDeviceTypeColor = () => {
     if (device.isGateway) return 'var(--accent-primary)';
@@ -64,10 +72,35 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     setIsEditing(false);
   };
 
+  const handleOpenLimitInput = () => {
+    // Set current limit value or empty string for new limit
+    setBandwidthLimit(device.bandwidthLimit?.toString() || '');
+    setShowLimitInput(true);
+  };
+
   const handleSetBandwidthLimit = () => {
+    // Don't allow empty input - show error instead
+    if (bandwidthLimit.trim() === '') {
+      showNotification({
+        type: 'error',
+        title: 'Invalid Limit',
+        message: 'Please enter a valid bandwidth limit or click "Remove limit" to clear',
+      });
+      return;
+    }
+
     const limit = parseFloat(bandwidthLimit);
-    if (!isNaN(limit) && limit > 0) {
+
+    if (!isNaN(limit) && limit > 0 && limit <= 10000) {
       limitBandwidth(device.id, limit);
+      setShowLimitInput(false);
+    } else {
+      // Invalid input - keep input open and show error feedback
+      showNotification({
+        type: 'error',
+        title: 'Invalid Limit',
+        message: 'Please enter a valid bandwidth limit between 0.1 and 10000 MB/s',
+      });
     }
   };
 
@@ -220,15 +253,62 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
               >
                 Cut
               </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowBandwidthInput(!showBandwidthInput);
-                }}
-                className="neu-button h-8 px-3 flex items-center justify-center text-xs"
-              >
-                Limit
-              </button>
+              <div className="relative" ref={limitRef}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenLimitInput();
+                  }}
+                  className={`neu-button h-8 px-3 flex items-center justify-center text-xs ${
+                    showLimitInput ? 'neu-pressed' : ''
+                  }`}
+                >
+                  Limit
+                </button>
+                {showLimitInput && (
+                  <div
+                    className="absolute top-full mt-1 right-0 p-2 neu-card rounded-lg animate-flow-down z-50"
+                    style={{ minWidth: '180px' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={bandwidthLimit}
+                        onChange={(e) => setBandwidthLimit(e.target.value)}
+                        placeholder={device.bandwidthLimit ? `Current: ${device.bandwidthLimit} MB/s` : "MB/s"}
+                        className="neu-input flex-1 text-xs px-2 py-1.5"
+                        min="0.1"
+                        step="0.1"
+                        autoFocus
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSetBandwidthLimit();
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleSetBandwidthLimit}
+                        className="neu-button-primary text-xs px-3 py-1.5"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {device.bandwidthLimit && (
+                      <button
+                        onClick={() => {
+                          removeBandwidthLimit(device.id);
+                          setShowLimitInput(false);
+                        }}
+                        className="text-xs text-text-secondary hover:text-red-500 mt-1 transition-colors"
+                      >
+                        Remove limit
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -350,43 +430,6 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         )}
       </div>
 
-      {/* Bandwidth Limit Input */}
-      {showBandwidthInput && device.status !== 'blocked' && (
-        <div className="mb-4 p-3 rounded-xl glass animate-fade-in">
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              value={bandwidthLimit}
-              onChange={(e) => setBandwidthLimit(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="MB/s"
-              className="neu-input flex-1 px-3 py-2 text-sm"
-              min="0.1"
-              step="0.1"
-            />
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSetBandwidthLimit();
-                setShowBandwidthInput(false);
-              }}
-              className="neu-button-primary text-sm"
-            >
-              Apply
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setBandwidthLimit(device.bandwidthLimit?.toString() || '');
-                setShowBandwidthInput(false);
-              }}
-              className="neu-button text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Action Buttons - Fixed height */}
       <div className="flex gap-1 mt-auto">
@@ -412,15 +455,61 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
             >
               Cut
             </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowBandwidthInput(!showBandwidthInput);
-              }}
-              className="neu-button h-8 flex-1 text-xs flex items-center justify-center ripple"
-            >
-              {showBandwidthInput ? 'Cancel' : 'Limit'}
-            </button>
+            <div className="relative flex-1" ref={limitRef}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenLimitInput();
+                }}
+                className={`neu-button h-8 w-full text-xs flex items-center justify-center ripple ${
+                  showLimitInput ? 'neu-pressed' : ''
+                }`}
+              >
+                Limit
+              </button>
+              {showLimitInput && (
+                <div
+                  className="absolute bottom-full mb-1 left-0 right-0 p-2 neu-card rounded-lg animate-flow-up z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={bandwidthLimit}
+                      onChange={(e) => setBandwidthLimit(e.target.value)}
+                      placeholder={device.bandwidthLimit ? `Current: ${device.bandwidthLimit} MB/s` : "MB/s"}
+                      className="neu-input flex-1 text-xs px-2 py-1.5"
+                      min="0.1"
+                      step="0.1"
+                      autoFocus
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSetBandwidthLimit();
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={handleSetBandwidthLimit}
+                      className="neu-button-primary text-xs px-3 py-1.5"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  {device.bandwidthLimit && (
+                    <button
+                      onClick={() => {
+                        removeBandwidthLimit(device.id);
+                        setShowLimitInput(false);
+                      }}
+                      className="text-xs text-text-secondary hover:text-red-500 mt-1 transition-colors"
+                    >
+                      Remove limit
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>

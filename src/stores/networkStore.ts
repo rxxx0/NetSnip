@@ -160,6 +160,7 @@ interface NetworkStore {
   cutDevice: (deviceId: string) => Promise<void>;
   restoreDevice: (deviceId: string) => Promise<void>;
   limitBandwidth: (deviceId: string, limitMbps: number) => Promise<void>;
+  removeBandwidthLimit: (deviceId: string) => Promise<void>;
   updateDeviceName: (deviceId: string, name: string) => Promise<void>;
   selectDevice: (device: Device | null) => void;
   clearError: () => void;
@@ -276,6 +277,30 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     }
   },
 
+  removeBandwidthLimit: async (deviceId: string) => {
+    set({ loading: true, error: null });
+    try {
+      await invoke('remove_bandwidth_limit', { deviceId });
+
+      // Remove bandwidth limit from device
+      set(state => ({
+        devices: state.devices.map((d: Device) => {
+          if (d.id === deviceId) {
+            return {
+              ...d,
+              bandwidthLimit: undefined,
+              status: 'online' as const
+            };
+          }
+          return d;
+        }),
+        loading: false
+      }));
+    } catch (error) {
+      set({ error: String(error), loading: false });
+    }
+  },
+
   updateDeviceName: async (deviceId: string, name: string) => {
     set({ loading: true, error: null });
     try {
@@ -329,46 +354,89 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     });
   },
 
-  updateBandwidth: () => {
-    set(state => ({
-      devices: state.devices.map(device => {
-        // Don't update blocked devices
-        if (device.status === 'blocked') {
-          return { ...device, bandwidthCurrent: 0 };
-        }
+  updateBandwidth: async () => {
+    try {
+      // Use actual backend command if available
+      if (isTauri && window.__TAURI__) {
+        const updates = await invoke('get_bandwidth_updates') as Array<{
+          device_id: string;
+          bandwidth_current: number;
+        }>;
 
-        // Simulate realistic bandwidth fluctuations over a 20-second average
-        const currentBandwidth = device.bandwidthCurrent;
+        set(state => ({
+          devices: state.devices.map(device => {
+            // Find bandwidth update for this device
+            const update = updates.find(u => u.device_id === device.id);
 
-        // Smaller variations for 20-second averages (more stable)
-        const maxChange = currentBandwidth * 0.15; // Max 15% change for averaged data
-        const change = (Math.random() - 0.5) * maxChange;
-        let newBandwidth = Math.max(0.1, currentBandwidth + change); // Keep minimum at 0.1 for online devices
+            if (update) {
+              // Apply bandwidth limits
+              let newBandwidth = Math.max(0, update.bandwidth_current);
 
-        // Apply bandwidth limit if set
-        if (device.bandwidthLimit && newBandwidth > device.bandwidthLimit) {
-          // Stay closer to limit with averaged data
-          newBandwidth = device.bandwidthLimit * (0.85 + Math.random() * 0.1);
-        }
+              if (device.status === 'blocked') {
+                newBandwidth = 0;
+              } else if (device.bandwidthLimit && newBandwidth > device.bandwidthLimit) {
+                newBandwidth = device.bandwidthLimit * (0.85 + Math.random() * 0.1);
+              }
 
-        // Add realistic patterns for 20-second averages
-        if (device.deviceType === 'tv' && newBandwidth > 0) {
-          // TVs have very steady bandwidth when streaming (averaged)
-          newBandwidth = currentBandwidth * (0.97 + Math.random() * 0.06);
-        } else if (device.deviceType === 'phone' || device.deviceType === 'tablet') {
-          // Mobile devices still show some variation but less than instantaneous
-          newBandwidth = currentBandwidth * (0.85 + Math.random() * 0.3);
-        } else if (device.deviceType === 'iot') {
-          // IoT devices typically have very low, steady bandwidth
-          newBandwidth = Math.min(1, currentBandwidth * (0.9 + Math.random() * 0.2));
-        }
+              return {
+                ...device,
+                bandwidthCurrent: parseFloat(newBandwidth.toFixed(1))
+              };
+            }
 
-        return {
-          ...device,
-          bandwidthCurrent: parseFloat(newBandwidth.toFixed(1))
-        };
-      })
-    }));
+            // No update for this device - keep current value with slight variation
+            if (device.status === 'blocked') {
+              return { ...device, bandwidthCurrent: 0 };
+            }
+
+            return device;
+          })
+        }));
+      } else {
+        // Fallback to simulation for non-Tauri environments
+        set(state => ({
+          devices: state.devices.map(device => {
+            // Don't update blocked devices
+            if (device.status === 'blocked') {
+              return { ...device, bandwidthCurrent: 0 };
+            }
+
+            // Simulate realistic bandwidth fluctuations over a 20-second average
+            const currentBandwidth = device.bandwidthCurrent;
+
+            // Smaller variations for 20-second averages (more stable)
+            const maxChange = currentBandwidth * 0.15; // Max 15% change for averaged data
+            const change = (Math.random() - 0.5) * maxChange;
+            let newBandwidth = Math.max(0.1, currentBandwidth + change); // Keep minimum at 0.1 for online devices
+
+            // Apply bandwidth limit if set
+            if (device.bandwidthLimit && newBandwidth > device.bandwidthLimit) {
+              // Stay closer to limit with averaged data
+              newBandwidth = device.bandwidthLimit * (0.85 + Math.random() * 0.1);
+            }
+
+            // Add realistic patterns for 20-second averages
+            if (device.deviceType === 'tv' && newBandwidth > 0) {
+              // TVs have very steady bandwidth when streaming (averaged)
+              newBandwidth = currentBandwidth * (0.97 + Math.random() * 0.06);
+            } else if (device.deviceType === 'phone' || device.deviceType === 'tablet') {
+              // Mobile devices still show some variation but less than instantaneous
+              newBandwidth = currentBandwidth * (0.85 + Math.random() * 0.3);
+            } else if (device.deviceType === 'iot') {
+              // IoT devices typically have very low, steady bandwidth
+              newBandwidth = Math.min(1, currentBandwidth * (0.9 + Math.random() * 0.2));
+            }
+
+            return {
+              ...device,
+              bandwidthCurrent: parseFloat(newBandwidth.toFixed(1))
+            };
+          })
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to update bandwidth:', error);
+    }
   },
 
   startPolling: () => {

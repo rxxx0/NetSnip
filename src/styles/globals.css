@@ -492,6 +492,37 @@
     }
   }
 
+  /* Flow animations for limit input */
+  .animate-flow-down {
+    animation: flowDown 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes flowDown {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-flow-up {
+    animation: flowUp 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes flowUp {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
   /* Staggered animations for lists */
   .stagger-children > * {
     animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) backwards;

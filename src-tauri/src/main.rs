@@ -50,6 +50,8 @@ fn main() {
             commands::device::cut_device,
             commands::device::restore_device,
             commands::device::limit_bandwidth,
+            commands::device::remove_bandwidth_limit,
+            commands::device::get_bandwidth_updates,
             commands::device::update_device_name,
             commands::settings::get_settings,
             commands::settings::update_settings,
