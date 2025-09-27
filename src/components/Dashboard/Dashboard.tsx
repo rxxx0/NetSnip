@@ -1,24 +1,55 @@
-import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import React, { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import { useNetworkStore } from "../../stores/networkStore";
+
+// Separate StatCard component that manages its own pulse animation
+const StatCard: React.FC<{
+  label: string;
+  value: string | number;
+  isActive?: boolean;
+  onClick?: () => void;
+  activeColor?: string;
+  pulseColor?: string;
+}> = ({ label, value, isActive, onClick, activeColor, pulseColor }) => {
+  const [isPulsing, setIsPulsing] = useState(false);
+  const prevValue = useRef<string | number | null>(null);
+  const [hoverClass, setHoverClass] = useState("");
+
+  // Check if value changed and trigger pulse
+  useEffect(() => {
+    const currentValue = value.toString();
+    if (prevValue.current !== null && prevValue.current !== currentValue) {
+      setIsPulsing(true);
+      const timer = setTimeout(() => setIsPulsing(false), 600);
+      return () => clearTimeout(timer);
+    }
+    prevValue.current = currentValue;
+  }, [value]);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => !isActive && setHoverClass("hover-lift-active")}
+      onMouseLeave={() => setHoverClass("")}
+      className={`neu-card p-4 text-center transition-all cursor-pointer w-full ${
+        isActive ? "neu-pressed" : ""
+      } ${hoverClass}`}
+      style={{ position: 'relative' }}
+    >
+      <div
+        className={`text-2xl font-semibold transition-colors ${
+          isActive ? activeColor : "text-text-primary"
+        } ${isPulsing && pulseColor ? pulseColor : ''}`}
+      >
+        {value}
+      </div>
+      <p className="text-xs text-text-secondary mt-1">{label}</p>
+    </button>
+  );
+};
 
 export const Dashboard: React.FC = () => {
   const { devices, networkInfo, scanning, filter, setFilter } =
     useNetworkStore();
-
-  // Track previous visual values for pulse animation
-  const [pulseClasses, setPulseClasses] = useState({
-    total: '',
-    blocked: '',
-    limited: '',
-    bandwidth: '',
-  });
-
-  const prevVisualValues = useRef({
-    total: '',
-    blocked: '',
-    limited: '',
-    bandwidth: '',
-  });
 
   // Format bandwidth with dynamic units - memoized for stability
   const formatBandwidth = useCallback((mbps: number): string => {
@@ -45,77 +76,6 @@ export const Dashboard: React.FC = () => {
       totalBandwidth: totalBandwidth,
     };
   }, [devices]);
-
-  // Check for visual changes and trigger pulse animations
-  useEffect(() => {
-    const currentVisualValues = {
-      total: stats.totalDevices.toString(),
-      blocked: stats.blockedDevices.toString(),
-      limited: stats.limitedDevices.toString(),
-      bandwidth: formatBandwidth(stats.totalBandwidth),
-    };
-
-    const newPulseClasses = {
-      total: '',
-      blocked: '',
-      limited: '',
-      bandwidth: '',
-    };
-
-    // Only pulse if the visual value has changed
-    if (prevVisualValues.current.total && prevVisualValues.current.total !== currentVisualValues.total) {
-      newPulseClasses.total = 'pulse-green';
-    }
-    if (prevVisualValues.current.blocked && prevVisualValues.current.blocked !== currentVisualValues.blocked) {
-      newPulseClasses.blocked = 'pulse-red';
-    }
-    if (prevVisualValues.current.limited && prevVisualValues.current.limited !== currentVisualValues.limited) {
-      newPulseClasses.limited = 'pulse-yellow';
-    }
-    if (prevVisualValues.current.bandwidth && prevVisualValues.current.bandwidth !== currentVisualValues.bandwidth) {
-      newPulseClasses.bandwidth = 'pulse-blue';
-    }
-
-    setPulseClasses(newPulseClasses);
-    prevVisualValues.current = currentVisualValues;
-
-    // Clear pulse classes after animation completes
-    const timer = setTimeout(() => {
-      setPulseClasses({
-        total: '',
-        blocked: '',
-        limited: '',
-        bandwidth: '',
-      });
-    }, 600);
-
-    return () => clearTimeout(timer);
-  }, [stats, formatBandwidth]);
-
-  const StatCard: React.FC<{
-    label: string;
-    value: string | number;
-    isActive?: boolean;
-    onClick?: () => void;
-    activeColor?: string;
-    pulseClass?: string;
-  }> = ({ label, value, isActive, onClick, activeColor, pulseClass }) => (
-    <button
-      onClick={onClick}
-      className={`neu-card p-4 text-center transition-all cursor-pointer w-full ${
-        isActive ? "neu-pressed" : "hover:-translate-y-0.5"
-      }`}
-    >
-      <p
-        className={`text-2xl font-semibold transition-colors ${
-          isActive ? activeColor : "text-text-primary"
-        } ${pulseClass || ''}`}
-      >
-        {value}
-      </p>
-      <p className="text-xs text-text-secondary mt-1">{label}</p>
-    </button>
-  );
 
   const handleFilterClick = (filterType: "all" | "blocked" | "limited") => {
     setFilter(filter === filterType ? "all" : filterType);
@@ -147,7 +107,7 @@ export const Dashboard: React.FC = () => {
           isActive={filter === "all"}
           onClick={() => handleFilterClick("all")}
           activeColor="text-green-500"
-          pulseClass={pulseClasses.total}
+          pulseColor="pulseGreen"
         />
 
         <StatCard
@@ -156,7 +116,7 @@ export const Dashboard: React.FC = () => {
           isActive={filter === "blocked"}
           onClick={() => handleFilterClick("blocked")}
           activeColor="text-red-500"
-          pulseClass={pulseClasses.blocked}
+          pulseColor="pulseRed"
         />
 
         <StatCard
@@ -165,13 +125,13 @@ export const Dashboard: React.FC = () => {
           isActive={filter === "limited"}
           onClick={() => handleFilterClick("limited")}
           activeColor="text-yellow-500"
-          pulseClass={pulseClasses.limited}
+          pulseColor="pulseYellow"
         />
 
         <StatCard
           label="Bandwidth"
           value={formatBandwidth(stats.totalBandwidth)}
-          pulseClass={pulseClasses.bandwidth}
+          pulseColor="pulseBlue"
         />
       </div>
 

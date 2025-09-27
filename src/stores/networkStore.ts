@@ -213,10 +213,10 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     try {
       await invoke('cut_device', { deviceId });
 
-      // Update device status
+      // Update device status and set bandwidth to 0
       set(state => ({
         devices: state.devices.map((d: Device) =>
-          d.id === deviceId ? { ...d, status: 'blocked' as const } : d
+          d.id === deviceId ? { ...d, status: 'blocked' as const, bandwidthCurrent: 0 } : d
         ),
         loading: false
       }));
@@ -230,11 +230,18 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
     try {
       await invoke('restore_device', { deviceId });
 
-      // Update device status
+      // Update device status and restore some bandwidth
       set(state => ({
-        devices: state.devices.map((d: Device) =>
-          d.id === deviceId ? { ...d, status: 'online' as const } : d
-        ),
+        devices: state.devices.map((d: Device) => {
+          if (d.id === deviceId) {
+            // Restore with a reasonable bandwidth value
+            const restoredBandwidth = d.bandwidthLimit
+              ? d.bandwidthLimit * 0.5 // Start at 50% of limit if limited
+              : Math.random() * 20 + 5; // Random between 5-25 MB/s otherwise
+            return { ...d, status: 'online' as const, bandwidthCurrent: parseFloat(restoredBandwidth.toFixed(1)) };
+          }
+          return d;
+        }),
         loading: false
       }));
     } catch (error) {
@@ -249,11 +256,19 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
       // Update device bandwidth limit
       set(state => ({
-        devices: state.devices.map((d: Device) =>
-          d.id === deviceId
-            ? { ...d, bandwidthLimit: limitMbps, status: 'limited' as const }
-            : d
-        ),
+        devices: state.devices.map((d: Device) => {
+          if (d.id === deviceId) {
+            // Apply limit and adjust current bandwidth if it exceeds the limit
+            const newBandwidth = Math.min(d.bandwidthCurrent, limitMbps);
+            return {
+              ...d,
+              bandwidthLimit: limitMbps,
+              bandwidthCurrent: parseFloat(newBandwidth.toFixed(1)),
+              status: 'limited' as const
+            };
+          }
+          return d;
+        }),
         loading: false
       }));
     } catch (error) {
@@ -322,24 +337,30 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
           return { ...device, bandwidthCurrent: 0 };
         }
 
-        // Simulate realistic bandwidth fluctuations
+        // Simulate realistic bandwidth fluctuations over a 20-second average
         const currentBandwidth = device.bandwidthCurrent;
-        const maxChange = currentBandwidth * 0.2; // Max 20% change
+
+        // Smaller variations for 20-second averages (more stable)
+        const maxChange = currentBandwidth * 0.15; // Max 15% change for averaged data
         const change = (Math.random() - 0.5) * maxChange;
-        let newBandwidth = Math.max(0, currentBandwidth + change);
+        let newBandwidth = Math.max(0.1, currentBandwidth + change); // Keep minimum at 0.1 for online devices
 
         // Apply bandwidth limit if set
         if (device.bandwidthLimit && newBandwidth > device.bandwidthLimit) {
-          newBandwidth = device.bandwidthLimit * (0.9 + Math.random() * 0.1);
+          // Stay closer to limit with averaged data
+          newBandwidth = device.bandwidthLimit * (0.85 + Math.random() * 0.1);
         }
 
-        // Add some realistic patterns
+        // Add realistic patterns for 20-second averages
         if (device.deviceType === 'tv' && newBandwidth > 0) {
-          // TVs tend to have steadier bandwidth when streaming
-          newBandwidth = currentBandwidth * (0.95 + Math.random() * 0.1);
+          // TVs have very steady bandwidth when streaming (averaged)
+          newBandwidth = currentBandwidth * (0.97 + Math.random() * 0.06);
         } else if (device.deviceType === 'phone' || device.deviceType === 'tablet') {
-          // Mobile devices have more variable bandwidth
-          newBandwidth = currentBandwidth * (0.8 + Math.random() * 0.4);
+          // Mobile devices still show some variation but less than instantaneous
+          newBandwidth = currentBandwidth * (0.85 + Math.random() * 0.3);
+        } else if (device.deviceType === 'iot') {
+          // IoT devices typically have very low, steady bandwidth
+          newBandwidth = Math.min(1, currentBandwidth * (0.9 + Math.random() * 0.2));
         }
 
         return {
@@ -358,10 +379,10 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
       clearInterval(state.pollingInterval);
     }
 
-    // Start new polling interval (update every 2 seconds)
+    // Start new polling interval (update every 20 seconds)
     const interval = setInterval(() => {
       get().updateBandwidth();
-    }, 2000) as unknown as number;
+    }, 20000) as unknown as number;
 
     set({ pollingInterval: interval });
 
