@@ -2,25 +2,157 @@ import { create } from 'zustand';
 // Check if we're in a Tauri context
 const isTauri = typeof window !== 'undefined' && window.__TAURI__ !== undefined;
 
-// Fallback for non-Tauri environments - returns empty/default data
+// Fallback for non-Tauri environments - returns sample data for development
 const mockInvoke = async (cmd: string, _args?: any): Promise<any> => {
   switch (cmd) {
     case 'scan_network':
-      // Return empty array - no devices discovered in development mode
-      return [];
+      // Return sample devices for development/demonstration
+      console.log('Development mode: Returning sample devices');
+      return [
+        {
+          id: '00_1b_63_84_45_e6',
+          name: 'MacBook-Pro',
+          customName: 'Work Laptop',
+          ip: '192.168.1.101',
+          mac: '00:1b:63:84:45:e6',
+          manufacturer: 'Apple',
+          deviceType: 'computer',
+          status: 'online',
+          bandwidthCurrent: 5.2,
+          bandwidthLimit: null,
+          isGateway: false,
+          isCurrentDevice: true,
+          lastSeen: new Date().toISOString()
+        },
+        {
+          id: 'b0_be_76_d3_4c_2a',
+          name: 'Gateway Router',
+          customName: null,
+          ip: '192.168.1.1',
+          mac: 'b0:be:76:d3:4c:2a',
+          manufacturer: 'TP-Link',
+          deviceType: 'router',
+          status: 'online',
+          bandwidthCurrent: 25.8,
+          bandwidthLimit: null,
+          isGateway: true,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString()
+        },
+        {
+          id: '8c_85_90_a0_3b_1d',
+          name: 'iPhone-15',
+          customName: 'Personal Phone',
+          ip: '192.168.1.102',
+          mac: '8c:85:90:a0:3b:1d',
+          manufacturer: 'Apple',
+          deviceType: 'phone',
+          status: 'online',
+          bandwidthCurrent: 2.1,
+          bandwidthLimit: null,
+          isGateway: false,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString()
+        },
+        {
+          id: '44_07_0b_62_8e_f5',
+          name: 'Smart-TV',
+          customName: 'Living Room TV',
+          ip: '192.168.1.103',
+          mac: '44:07:0b:62:8e:f5',
+          manufacturer: 'Samsung',
+          deviceType: 'tv',
+          status: 'online',
+          bandwidthCurrent: 12.5,
+          bandwidthLimit: null,
+          isGateway: false,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString()
+        },
+        {
+          id: 'dc_a6_32_7b_9c_2e',
+          name: 'Gaming-PC',
+          customName: null,
+          ip: '192.168.1.104',
+          mac: 'dc:a6:32:7b:9c:2e',
+          manufacturer: 'Intel',
+          deviceType: 'computer',
+          status: 'limited',
+          bandwidthCurrent: 8.0,
+          bandwidthLimit: 8.0,
+          isGateway: false,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString()
+        },
+        {
+          id: '70_3e_ac_df_85_42',
+          name: 'Echo-Dot',
+          customName: 'Kitchen Speaker',
+          ip: '192.168.1.105',
+          mac: '70:3e:ac:df:85:42',
+          manufacturer: 'Amazon',
+          deviceType: 'iot',
+          status: 'online',
+          bandwidthCurrent: 0.3,
+          bandwidthLimit: null,
+          isGateway: false,
+          isCurrentDevice: false,
+          lastSeen: new Date().toISOString()
+        }
+      ];
     case 'get_network_info':
-      // Return placeholder network info
+      // Return sample network info
       return {
-        gatewayIp: '',
-        gatewayMac: '',
-        localIp: '',
-        localMac: '',
-        subnetMask: '',
-        interfaceName: ''
+        gatewayIp: '192.168.1.1',
+        gatewayMac: 'b0:be:76:d3:4c:2a',
+        localIp: '192.168.1.101',
+        localMac: '00:1b:63:84:45:e6',
+        subnetMask: '255.255.255.0',
+        interfaceName: 'en0'
       };
     case 'get_bandwidth_updates':
-      // Return empty array - no bandwidth updates in development mode
-      return [];
+      // Return sample bandwidth updates with slight variations
+      return [
+        {
+          device_id: '00_1b_63_84_45_e6',
+          bandwidth_current: 5.2 + (Math.random() * 2 - 1)
+        },
+        {
+          device_id: 'b0_be_76_d3_4c_2a',
+          bandwidth_current: 25.8 + (Math.random() * 5 - 2.5)
+        },
+        {
+          device_id: '8c_85_90_a0_3b_1d',
+          bandwidth_current: 2.1 + (Math.random() * 0.5 - 0.25)
+        },
+        {
+          device_id: '44_07_0b_62_8e_f5',
+          bandwidth_current: 12.5 + (Math.random() * 3 - 1.5)
+        },
+        {
+          device_id: 'dc_a6_32_7b_9c_2e',
+          bandwidth_current: Math.min(8.0, 7.5 + (Math.random() * 1))
+        },
+        {
+          device_id: '70_3e_ac_df_85_42',
+          bandwidth_current: 0.3 + (Math.random() * 0.1)
+        }
+      ];
+    case 'cut_device':
+      console.log(`Development mode: Would cut device ${_args?.deviceId}`);
+      return { success: true, message: `Device ${_args?.deviceId} cut (simulated)` };
+    case 'restore_device':
+      console.log(`Development mode: Would restore device ${_args?.deviceId}`);
+      return { success: true, message: `Device ${_args?.deviceId} restored (simulated)` };
+    case 'limit_bandwidth':
+      console.log(`Development mode: Would limit device ${_args?.deviceId} to ${_args?.limitMbps} Mbps`);
+      return { success: true, message: `Bandwidth limited to ${_args?.limitMbps} Mbps (simulated)` };
+    case 'remove_bandwidth_limit':
+      console.log(`Development mode: Would remove limit for device ${_args?.deviceId}`);
+      return { success: true, message: `Bandwidth limit removed (simulated)` };
+    case 'update_device_name':
+      console.log(`Development mode: Would rename device ${_args?.deviceId} to ${_args?.name}`);
+      return null;
     default:
       console.log(`Development mode: ${cmd} command called with args:`, _args);
       return null;

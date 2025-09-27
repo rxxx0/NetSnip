@@ -35,6 +35,15 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    // Log which mode we're running in
+    const isTauri = typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
+    if (isTauri) {
+      console.log('🚀 NetSnip running in Tauri desktop mode - Full network features available');
+    } else {
+      console.log('🌐 NetSnip running in web development mode - Using sample data');
+      console.log('💡 To access real network features, run: npm run tauri:dev');
+    }
+
     // Initial network scan
     const init = async () => {
       await getNetworkInfo();

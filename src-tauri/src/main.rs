@@ -12,6 +12,7 @@ use modules::arp_controller::ArpController;
 use modules::bandwidth::BandwidthController;
 use modules::database::Database;
 use modules::packet_monitor::PacketMonitor;
+use modules::network_stats::NetworkStats;
 use pnet::datalink;
 
 pub struct AppState {
@@ -20,6 +21,7 @@ pub struct AppState {
     pub bandwidth_controller: Arc<Mutex<BandwidthController>>,
     pub database: Arc<Mutex<Database>>,
     pub packet_monitor: Arc<Mutex<Option<PacketMonitor>>>,
+    pub network_stats: Arc<Mutex<NetworkStats>>,
 }
 
 impl AppState {
@@ -57,6 +59,7 @@ impl AppState {
             bandwidth_controller: Arc::new(Mutex::new(BandwidthController::new())),
             database: Arc::new(Mutex::new(database)),
             packet_monitor: Arc::new(Mutex::new(packet_monitor)),
+            network_stats: Arc::new(Mutex::new(NetworkStats::new())),
         })
     }
 }
@@ -70,8 +73,9 @@ fn main() {
             let runtime = tokio::runtime::Runtime::new()?;
             let app_state = runtime.block_on(AppState::new())?;
 
-            // Try to start packet monitoring if available
+            // Try to start monitoring
             runtime.block_on(async {
+                // First try packet monitoring if available
                 let packet_monitor = app_state.packet_monitor.lock().await;
                 if let Some(monitor) = packet_monitor.as_ref() {
                     if let Err(e) = monitor.start_monitoring().await {
@@ -79,6 +83,15 @@ fn main() {
                     } else {
                         log::info!("Packet monitoring started successfully");
                     }
+                }
+                drop(packet_monitor);
+
+                // Always start network stats monitoring as fallback
+                let network_stats = app_state.network_stats.lock().await;
+                if let Err(e) = network_stats.start_monitoring().await {
+                    log::warn!("Could not start network stats monitoring: {}", e);
+                } else {
+                    log::info!("Network stats monitoring started");
                 }
             });
 

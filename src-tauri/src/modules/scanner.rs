@@ -80,7 +80,7 @@ impl NetworkScanner {
     pub async fn get_mac_for_ip(&self, ip: Ipv4Addr) -> Result<String> {
         // First, try to ping the IP to ensure it's in the ARP cache
         let _ = Command::new("ping")
-            .args(&["-c", "1", "-t", "1", &ip.to_string()])
+            .args(&["-c", "1", "-W", "1000", &ip.to_string()])
             .output();
 
         // Give it a moment to populate the ARP cache
@@ -247,9 +247,9 @@ impl NetworkScanner {
 
                 let ip_copy = ipv4;
                 let handle = tokio::spawn(async move {
-                    // Quick ping with 1 second timeout
+                    // Quick ping with 1 second timeout (macOS uses -t for TTL, -W for timeout in ms)
                     let output = Command::new("ping")
-                        .args(&["-c", "1", "-t", "1", "-W", "100", &ip_copy.to_string()])
+                        .args(&["-c", "1", "-W", "1000", "-t", "1", &ip_copy.to_string()])
                         .output();
 
                     match output {
