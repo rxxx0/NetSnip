@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub fn fingerprint_device(device: &crate::commands::network::Device) -> String {
     // Device type detection based on various heuristics
 
@@ -109,6 +110,7 @@ pub fn fingerprint_device(device: &crate::commands::network::Device) -> String {
     device_type.to_string()
 }
 
+#[allow(dead_code)]
 pub fn resolve_hostname(ip: &str) -> Option<String> {
     // Use DNS lookup to resolve hostname
     match dns_lookup::lookup_addr(&ip.parse().ok()?) {

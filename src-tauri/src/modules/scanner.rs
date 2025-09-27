@@ -1,16 +1,16 @@
 use anyhow::Result;
 use ipnetwork::IpNetwork;
-use pnet::datalink::{self, Channel, NetworkInterface};
-use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket};
-use pnet::packet::ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket};
-use pnet::packet::{MutablePacket, Packet};
+use pnet::datalink::{self, NetworkInterface};
+use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket};
+use pnet::packet::ethernet::{EtherTypes, MutableEthernetPacket};
+use pnet::packet::Packet;
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio::time::{sleep, timeout};
+use tokio::time::sleep;
 use crate::modules::vendor::VendorLookup;
 
 #[derive(Clone, Debug)]
@@ -125,7 +125,7 @@ impl NetworkScanner {
         log::info!("Scanning network: {}", network);
 
         // Get the gateway first
-        let (gateway_ip, gateway_mac) = match self.get_gateway().await {
+        let (gateway_ip, _gateway_mac) = match self.get_gateway().await {
             Ok(gw) => {
                 log::info!("Gateway detected: {} ({})", gw.0, gw.1);
                 gw
@@ -331,6 +331,7 @@ impl NetworkScanner {
         devices.values().cloned().collect()
     }
 
+    #[allow(dead_code)]
     fn create_arp_request_packet(
         source_ip: Ipv4Addr,
         source_mac: [u8; 6],

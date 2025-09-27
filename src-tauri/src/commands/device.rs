@@ -114,7 +114,7 @@ pub async fn limit_bandwidth(
         return Err("Bandwidth limit must be between 0.1 and 10000 Mbps".to_string());
     }
 
-    let mut bandwidth_controller = state.bandwidth_controller.lock().await;
+    let mut _bandwidth_controller = state.bandwidth_controller.lock().await;
 
     // TODO: Implement bandwidth limiting with actual IP
     // let device_ip = get_device_ip_from_id(&device_id)?;
@@ -150,7 +150,7 @@ pub async fn update_device_name(
         .replace('"', "&quot;")
         .replace('\'', "&#x27;");
 
-    let mut database = state.database.lock().await;
+    let mut _database = state.database.lock().await;
 
     // TODO: Update device name in database
     // database.update_device_name(&device_id, &sanitized_name).await
@@ -171,7 +171,7 @@ pub async fn remove_bandwidth_limit(
         return Err("Invalid device ID".to_string());
     }
 
-    let mut bandwidth_controller = state.bandwidth_controller.lock().await;
+    let mut _bandwidth_controller = state.bandwidth_controller.lock().await;
 
     // TODO: Implement bandwidth limit removal with actual IP
     // let device_ip = get_device_ip_from_id(&device_id)?;
@@ -223,7 +223,7 @@ pub async fn get_bandwidth_updates(state: State<'_, AppState>) -> Result<Vec<Ban
         // Use real packet data
         let packet_monitor_opt = state.packet_monitor.lock().await;
         if let Some(packet_monitor) = packet_monitor_opt.as_ref() {
-            let traffic_stats = packet_monitor.get_traffic_stats().await;
+            let _traffic_stats = packet_monitor.get_traffic_stats().await;
 
             for device in devices.iter() {
                 let device_id = device.mac.replace(':', "_").to_lowercase();

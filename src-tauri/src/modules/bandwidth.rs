@@ -12,6 +12,7 @@ pub struct PacketQueue {
     pub last_refill: Instant,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct DeviceBandwidth {
     pub device_id: String,
@@ -26,6 +27,7 @@ pub struct BandwidthController {
     packet_queues: Arc<Mutex<HashMap<IpAddr, PacketQueue>>>,
     statistics: Arc<Mutex<HashMap<IpAddr, BandwidthStats>>>,
     device_bandwidth: Arc<Mutex<HashMap<String, DeviceBandwidth>>>,
+    #[allow(dead_code)]
     measurement_interval: Duration,
 }
 

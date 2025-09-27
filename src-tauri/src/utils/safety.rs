@@ -1,12 +1,14 @@
 use std::net::{IpAddr, Ipv4Addr};
 use pnet::datalink;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct SafetyCheck {
     pub is_safe: bool,
     pub reason: Option<String>,
 }
 
+#[allow(dead_code)]
 pub fn check_self_cut(target_ip: &str) -> SafetyCheck {
     // Get current machine's IPs
     let interfaces = datalink::interfaces();
@@ -28,6 +30,7 @@ pub fn check_self_cut(target_ip: &str) -> SafetyCheck {
     }
 }
 
+#[allow(dead_code)]
 pub fn check_gateway_cut(target_ip: &str, gateway_ip: &str) -> SafetyCheck {
     if target_ip == gateway_ip {
         SafetyCheck {
@@ -42,6 +45,7 @@ pub fn check_gateway_cut(target_ip: &str, gateway_ip: &str) -> SafetyCheck {
     }
 }
 
+#[allow(dead_code)]
 pub fn is_private_ip(ip: &str) -> bool {
     match ip.parse::<IpAddr>() {
         Ok(IpAddr::V4(ipv4)) => {
@@ -68,6 +72,7 @@ pub fn is_private_ip(ip: &str) -> bool {
     }
 }
 
+#[allow(dead_code)]
 pub fn validate_mac_address(mac: &str) -> bool {
     // MAC address format: XX:XX:XX:XX:XX:XX
     let parts: Vec<&str> = mac.split(':').collect();
@@ -93,6 +98,7 @@ pub fn validate_mac_address(mac: &str) -> bool {
     true
 }
 
+#[allow(dead_code)]
 pub fn is_multicast_mac(mac: &str) -> bool {
     if let Some(first_octet) = mac.split(':').next() {
         if let Ok(byte) = u8::from_str_radix(first_octet, 16) {
@@ -103,6 +109,7 @@ pub fn is_multicast_mac(mac: &str) -> bool {
     false
 }
 
+#[allow(dead_code)]
 pub fn get_network_from_ip(ip: &str, subnet_mask: &str) -> Option<String> {
     let ip_addr: Ipv4Addr = ip.parse().ok()?;
     let mask_addr: Ipv4Addr = subnet_mask.parse().ok()?;

@@ -7,6 +7,7 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct DeviceBandwidth {
     pub ip: Ipv4Addr,

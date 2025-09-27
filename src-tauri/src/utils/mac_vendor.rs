@@ -363,6 +363,7 @@ lazy_static::lazy_static! {
     };
 }
 
+#[allow(dead_code)]
 pub fn get_manufacturer_from_mac(mac: &str) -> Option<String> {
     // Get first 3 octets (OUI)
     let oui = mac.get(0..8)?.to_uppercase();

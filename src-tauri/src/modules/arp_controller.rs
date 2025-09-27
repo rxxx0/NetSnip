@@ -2,7 +2,7 @@ use anyhow::Result;
 use pnet::datalink::{self, Channel, NetworkInterface};
 use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{EtherTypes, MutableEthernetPacket};
-use pnet::packet::{MutablePacket, Packet};
+use pnet::packet::Packet;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
@@ -290,9 +290,9 @@ impl ArpController {
             self.our_mac,
         );
 
-        tx.send_to(&packet_to_target, None)
+        let _ = tx.send_to(&packet_to_target, None)
             .ok_or_else(|| anyhow::anyhow!("Failed to send ARP packet"))?;
-        tx.send_to(&packet_to_gateway, None)
+        let _ = tx.send_to(&packet_to_gateway, None)
             .ok_or_else(|| anyhow::anyhow!("Failed to send ARP packet"))?;
 
         Ok(())
@@ -326,9 +326,9 @@ impl ArpController {
 
         // Send multiple times to ensure restoration
         for _ in 0..3 {
-            tx.send_to(&packet_to_target, None)
+            let _ = tx.send_to(&packet_to_target, None)
                 .ok_or_else(|| anyhow::anyhow!("Failed to send restore packet"))?;
-            tx.send_to(&packet_to_gateway, None)
+            let _ = tx.send_to(&packet_to_gateway, None)
                 .ok_or_else(|| anyhow::anyhow!("Failed to send restore packet"))?;
             sleep(Duration::from_millis(100)).await;
         }

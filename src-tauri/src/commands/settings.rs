@@ -28,17 +28,17 @@ impl Default for Settings {
 }
 
 #[tauri::command]
-pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
+pub async fn get_settings(_state: State<'_, AppState>) -> Result<Settings, String> {
     // TODO: Load from database
     Ok(Settings::default())
 }
 
 #[tauri::command]
 pub async fn update_settings(
-    state: State<'_, AppState>,
-    settings: Settings,
+    _state: State<'_, AppState>,
+    _settings: Settings,
 ) -> Result<(), String> {
-    let mut database = state.database.lock().await;
+    let mut _database = _state.database.lock().await;
 
     // TODO: Save to database
 

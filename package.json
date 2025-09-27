@@ -14,8 +14,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:dev": "source $HOME/.cargo/env && tauri dev",
+    "tauri:build": "source $HOME/.cargo/env && tauri build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

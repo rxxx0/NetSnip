@@ -1,7 +1,7 @@
 {
   "productName": "NetSnip",
   "version": "1.0.0",
-  "identifier": "com.netsnip.app",
+  "identifier": "com.netsnip",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",

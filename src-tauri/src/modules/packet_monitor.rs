@@ -1,10 +1,7 @@
 use anyhow::Result;
 use pnet::datalink::{self, Channel, NetworkInterface};
 use pnet::packet::ethernet::{EthernetPacket, EtherTypes};
-use pnet::packet::ip::IpNextHeaderProtocols;
 use pnet::packet::ipv4::Ipv4Packet;
-use pnet::packet::tcp::TcpPacket;
-use pnet::packet::udp::UdpPacket;
 use pnet::packet::Packet;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
@@ -285,7 +282,7 @@ impl PacketMonitor {
 
     /// Fallback monitoring using system statistics
     async fn monitor_with_statistics(
-        interface: NetworkInterface,
+        _interface: NetworkInterface,
         traffic_stats: Arc<Mutex<HashMap<Ipv4Addr, DeviceTraffic>>>,
         local_ip: Ipv4Addr,
         running: Arc<Mutex<bool>>,
