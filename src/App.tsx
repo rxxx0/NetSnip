@@ -21,7 +21,7 @@ function App() {
   };
 
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
-  const { scanNetwork, getNetworkInfo, error, clearError } = useNetworkStore();
+  const { scanNetwork, getNetworkInfo, error, clearError, startPolling, stopPolling } = useNetworkStore();
 
   useEffect(() => {
     // Apply theme to document
@@ -39,8 +39,15 @@ function App() {
     const init = async () => {
       await getNetworkInfo();
       await scanNetwork();
+      // Start bandwidth polling after initial scan
+      startPolling();
     };
     init();
+
+    // Cleanup: stop polling when component unmounts
+    return () => {
+      stopPolling();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionally omit dependencies as we only want this to run once
 

@@ -153,6 +153,7 @@ interface NetworkStore {
   selectedDevice: Device | null;
   searchQuery: string;
   filter: 'all' | 'online' | 'blocked' | 'limited';
+  pollingInterval: number | null;
 
   scanNetwork: () => Promise<void>;
   getNetworkInfo: () => Promise<void>;
@@ -165,6 +166,9 @@ interface NetworkStore {
   setSearchQuery: (query: string) => void;
   setFilter: (filter: 'all' | 'online' | 'blocked' | 'limited') => void;
   getFilteredDevices: () => Device[];
+  startPolling: () => void;
+  stopPolling: () => void;
+  updateBandwidth: () => void;
 }
 
 export const useNetworkStore = create<NetworkStore>((set, get) => ({
@@ -176,6 +180,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   selectedDevice: null,
   searchQuery: '',
   filter: 'all',
+  pollingInterval: null,
 
   scanNetwork: async () => {
     set({ scanning: true, error: null });
@@ -307,5 +312,69 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
         device.deviceType.toLowerCase().includes(query)
       );
     });
+  },
+
+  updateBandwidth: () => {
+    set(state => ({
+      devices: state.devices.map(device => {
+        // Don't update blocked devices
+        if (device.status === 'blocked') {
+          return { ...device, bandwidthCurrent: 0 };
+        }
+
+        // Simulate realistic bandwidth fluctuations
+        const currentBandwidth = device.bandwidthCurrent;
+        const maxChange = currentBandwidth * 0.2; // Max 20% change
+        const change = (Math.random() - 0.5) * maxChange;
+        let newBandwidth = Math.max(0, currentBandwidth + change);
+
+        // Apply bandwidth limit if set
+        if (device.bandwidthLimit && newBandwidth > device.bandwidthLimit) {
+          newBandwidth = device.bandwidthLimit * (0.9 + Math.random() * 0.1);
+        }
+
+        // Add some realistic patterns
+        if (device.deviceType === 'tv' && newBandwidth > 0) {
+          // TVs tend to have steadier bandwidth when streaming
+          newBandwidth = currentBandwidth * (0.95 + Math.random() * 0.1);
+        } else if (device.deviceType === 'phone' || device.deviceType === 'tablet') {
+          // Mobile devices have more variable bandwidth
+          newBandwidth = currentBandwidth * (0.8 + Math.random() * 0.4);
+        }
+
+        return {
+          ...device,
+          bandwidthCurrent: parseFloat(newBandwidth.toFixed(1))
+        };
+      })
+    }));
+  },
+
+  startPolling: () => {
+    const state = get();
+
+    // Clear existing interval if any
+    if (state.pollingInterval) {
+      clearInterval(state.pollingInterval);
+    }
+
+    // Start new polling interval (update every 2 seconds)
+    const interval = setInterval(() => {
+      get().updateBandwidth();
+    }, 2000) as unknown as number;
+
+    set({ pollingInterval: interval });
+
+    // Initial update
+    get().updateBandwidth();
+  },
+
+  stopPolling: () => {
+    const state = get();
+
+    if (state.pollingInterval) {
+      clearInterval(state.pollingInterval);
+      set({ pollingInterval: null });
+    }
   },
 }));

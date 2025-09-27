@@ -131,7 +131,7 @@ export const DeviceList: React.FC = () => {
   };
 
   return (
-    <div className="neu-card rounded-2xl p-6 animate-fade-in">
+    <div className="neu-card rounded-2xl px-6 pt-4 pb-6 animate-fade-in">
       {/* Header */}
       <div className="flex items-end justify-between mb-4">
         <h2 className="text-2xl font-semibold text-text-primary">

@@ -198,17 +198,16 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           </div>
 
           {device.status === 'blocked' ? (
-            <div className="flex gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAction('restore');
-                }}
-                className="neu-button-primary h-8 px-6 flex items-center justify-center text-xs flex-1"
-              >
-                Restore
-              </button>
-            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAction('restore');
+              }}
+              className="neu-button-primary h-8 px-3 flex items-center justify-center text-xs"
+              style={{ minWidth: '110px' }}
+            >
+              Restore
+            </button>
           ) : (
             <>
               <button

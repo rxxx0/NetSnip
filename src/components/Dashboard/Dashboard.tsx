@@ -1,17 +1,32 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useNetworkStore } from "../../stores/networkStore";
 
 export const Dashboard: React.FC = () => {
   const { devices, networkInfo, scanning, filter, setFilter } =
     useNetworkStore();
 
-  // Format bandwidth with dynamic units
-  const formatBandwidth = (mbps: number): string => {
+  // Track previous visual values for pulse animation
+  const [pulseClasses, setPulseClasses] = useState({
+    total: '',
+    blocked: '',
+    limited: '',
+    bandwidth: '',
+  });
+
+  const prevVisualValues = useRef({
+    total: '',
+    blocked: '',
+    limited: '',
+    bandwidth: '',
+  });
+
+  // Format bandwidth with dynamic units - memoized for stability
+  const formatBandwidth = useCallback((mbps: number): string => {
     if (mbps >= 1000) {
       return `${(mbps / 1000).toFixed(1)} GB/s`;
     }
     return `${mbps.toFixed(1)} MB/s`;
-  };
+  }, []);
 
   const stats = useMemo(() => {
     const online = devices.filter((d) => d.status === "online").length;
@@ -31,13 +46,60 @@ export const Dashboard: React.FC = () => {
     };
   }, [devices]);
 
+  // Check for visual changes and trigger pulse animations
+  useEffect(() => {
+    const currentVisualValues = {
+      total: stats.totalDevices.toString(),
+      blocked: stats.blockedDevices.toString(),
+      limited: stats.limitedDevices.toString(),
+      bandwidth: formatBandwidth(stats.totalBandwidth),
+    };
+
+    const newPulseClasses = {
+      total: '',
+      blocked: '',
+      limited: '',
+      bandwidth: '',
+    };
+
+    // Only pulse if the visual value has changed
+    if (prevVisualValues.current.total && prevVisualValues.current.total !== currentVisualValues.total) {
+      newPulseClasses.total = 'pulse-green';
+    }
+    if (prevVisualValues.current.blocked && prevVisualValues.current.blocked !== currentVisualValues.blocked) {
+      newPulseClasses.blocked = 'pulse-red';
+    }
+    if (prevVisualValues.current.limited && prevVisualValues.current.limited !== currentVisualValues.limited) {
+      newPulseClasses.limited = 'pulse-yellow';
+    }
+    if (prevVisualValues.current.bandwidth && prevVisualValues.current.bandwidth !== currentVisualValues.bandwidth) {
+      newPulseClasses.bandwidth = 'pulse-blue';
+    }
+
+    setPulseClasses(newPulseClasses);
+    prevVisualValues.current = currentVisualValues;
+
+    // Clear pulse classes after animation completes
+    const timer = setTimeout(() => {
+      setPulseClasses({
+        total: '',
+        blocked: '',
+        limited: '',
+        bandwidth: '',
+      });
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [stats, formatBandwidth]);
+
   const StatCard: React.FC<{
     label: string;
     value: string | number;
     isActive?: boolean;
     onClick?: () => void;
     activeColor?: string;
-  }> = ({ label, value, isActive, onClick, activeColor }) => (
+    pulseClass?: string;
+  }> = ({ label, value, isActive, onClick, activeColor, pulseClass }) => (
     <button
       onClick={onClick}
       className={`neu-card p-4 text-center transition-all cursor-pointer w-full ${
@@ -47,7 +109,7 @@ export const Dashboard: React.FC = () => {
       <p
         className={`text-2xl font-semibold transition-colors ${
           isActive ? activeColor : "text-text-primary"
-        }`}
+        } ${pulseClass || ''}`}
       >
         {value}
       </p>
@@ -85,6 +147,7 @@ export const Dashboard: React.FC = () => {
           isActive={filter === "all"}
           onClick={() => handleFilterClick("all")}
           activeColor="text-green-500"
+          pulseClass={pulseClasses.total}
         />
 
         <StatCard
@@ -93,6 +156,7 @@ export const Dashboard: React.FC = () => {
           isActive={filter === "blocked"}
           onClick={() => handleFilterClick("blocked")}
           activeColor="text-red-500"
+          pulseClass={pulseClasses.blocked}
         />
 
         <StatCard
@@ -101,9 +165,14 @@ export const Dashboard: React.FC = () => {
           isActive={filter === "limited"}
           onClick={() => handleFilterClick("limited")}
           activeColor="text-yellow-500"
+          pulseClass={pulseClasses.limited}
         />
 
-        <StatCard label="Bandwidth" value={formatBandwidth(stats.totalBandwidth)} />
+        <StatCard
+          label="Bandwidth"
+          value={formatBandwidth(stats.totalBandwidth)}
+          pulseClass={pulseClasses.bandwidth}
+        />
       </div>
 
       {/* Network Status Banner */}
