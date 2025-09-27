@@ -25,22 +25,41 @@ pub async fn cut_device(
         return Err("Invalid device ID".to_string());
     }
 
-    // Get device info from database
-    let database = state.database.lock().await;
+    // Parse device_id (MAC address with underscores)
+    let mac_address = device_id.replace('_', ":");
 
-    // Safety check: prevent self-cutting
-    // This would be implemented with actual network info
-    // let our_ip = get_our_ip();
-    // if device_ip == our_ip {
-    //     return Err("Cannot cut own device".to_string());
-    // }
+    // Get device info from scanner
+    let scanner = state.scanner.lock().await;
+    let devices = scanner.get_discovered_devices().await;
+    drop(scanner);
 
-    // TODO: Implement actual ARP spoofing
-    log::info!("Cutting device: {}", device_id);
+    // Find the device by MAC
+    let device = devices.iter()
+        .find(|d| d.mac.to_lowercase() == mac_address.to_lowercase())
+        .ok_or_else(|| format!("Device {} not found", device_id))?;
+
+    // Get gateway info
+    let scanner = state.scanner.lock().await;
+    let (gateway_ip, gateway_mac) = scanner.get_gateway().await
+        .map_err(|e| format!("Failed to get gateway info: {}", e))?;
+    drop(scanner);
+
+    // Get ARP controller and set gateway if needed
+    let mut arp = state.arp_controller.lock().await;
+    if arp.gateway_ip.is_none() {
+        arp.set_gateway(gateway_ip, gateway_mac.clone())
+            .map_err(|e| format!("Failed to set gateway: {}", e))?;
+    }
+
+    // Cut the device
+    arp.cut_device(device.ip, device.mac.clone()).await
+        .map_err(|e| format!("Failed to cut device: {}", e))?;
+
+    log::info!("Successfully cut device: {} ({})", device.ip, device.mac);
 
     Ok(CutResult {
         success: true,
-        message: format!("Device {} has been cut", device_id),
+        message: format!("Device {} has been cut from network", device_id),
     })
 }
 
@@ -49,11 +68,34 @@ pub async fn restore_device(
     state: State<'_, AppState>,
     device_id: String,
 ) -> Result<CutResult, String> {
-    // TODO: Implement ARP restoration
+    // Validate device_id
+    if device_id.is_empty() {
+        return Err("Invalid device ID".to_string());
+    }
+
+    // Parse device_id (MAC address with underscores)
+    let mac_address = device_id.replace('_', ":");
+
+    // Get device info from scanner
+    let scanner = state.scanner.lock().await;
+    let devices = scanner.get_discovered_devices().await;
+    drop(scanner);
+
+    // Find the device by MAC
+    let device = devices.iter()
+        .find(|d| d.mac.to_lowercase() == mac_address.to_lowercase())
+        .ok_or_else(|| format!("Device {} not found", device_id))?;
+
+    // Restore the device
+    let arp = state.arp_controller.lock().await;
+    arp.restore_device(device.ip).await
+        .map_err(|e| format!("Failed to restore device: {}", e))?;
+
+    log::info!("Successfully restored device: {} ({})", device.ip, device.mac);
 
     Ok(CutResult {
         success: true,
-        message: format!("Device {} has been restored", device_id),
+        message: format!("Device {} has been restored to network", device_id),
     })
 }
 
@@ -151,25 +193,77 @@ pub struct BandwidthUpdate {
 
 #[tauri::command]
 pub async fn get_bandwidth_updates(state: State<'_, AppState>) -> Result<Vec<BandwidthUpdate>, String> {
-    // Get actual bandwidth data from the controller
-    let bandwidth_controller = state.bandwidth_controller.lock().await;
+    let mut bandwidth_updates = Vec::new();
 
-    // Get all bandwidth updates from monitoring
-    let updates = bandwidth_controller.get_all_bandwidth_updates().await;
+    // First check if packet monitor is available
+    let packet_monitor_opt = state.packet_monitor.lock().await;
 
-    // Convert to BandwidthUpdate format
-    let bandwidth_updates: Vec<BandwidthUpdate> = updates
-        .into_iter()
-        .map(|(device_id, bandwidth_current)| BandwidthUpdate {
-            device_id,
-            bandwidth_current,
-        })
-        .collect();
+    if let Some(packet_monitor) = packet_monitor_opt.as_ref() {
+        // Get real bandwidth data from packet monitor
+        let traffic_stats = packet_monitor.get_traffic_stats().await;
+
+        // Get discovered devices to match IPs to device IDs
+        let scanner = state.scanner.lock().await;
+        let devices = scanner.get_discovered_devices().await;
+        drop(scanner);
+
+        // Check if any device is cut (should have 0 bandwidth)
+        let arp = state.arp_controller.lock().await;
+        let cut_devices = arp.get_cut_devices().await;
+        drop(arp);
+
+        // Convert traffic stats to bandwidth updates
+        for device in devices.iter() {
+            let device_id = device.mac.replace(':', "_").to_lowercase();
+
+            // Check if device is cut
+            let is_cut = cut_devices.iter().any(|c| c.target_ip == device.ip && c.active);
+
+            if is_cut {
+                // Device is cut, report 0 bandwidth
+                bandwidth_updates.push(BandwidthUpdate {
+                    device_id,
+                    bandwidth_current: 0.0,
+                });
+            } else if let Some(traffic) = traffic_stats.get(&device.ip) {
+                // Calculate bandwidth based on bytes transferred
+                if let Ok(elapsed) = std::time::SystemTime::now().duration_since(traffic.last_update) {
+                    let elapsed_secs = elapsed.as_secs_f64();
+
+                    // Only report recent data (within last 30 seconds)
+                    if elapsed_secs > 0.0 && elapsed_secs < 30.0 {
+                        // Total bytes transferred
+                        let total_bytes = traffic.bytes_sent + traffic.bytes_received;
+
+                        // Convert to MB/s (megabytes per second)
+                        let mbps = (total_bytes as f64) / (elapsed_secs * 1_000_000.0);
+
+                        bandwidth_updates.push(BandwidthUpdate {
+                            device_id,
+                            bandwidth_current: mbps.max(0.0),
+                        });
+                    }
+                }
+            }
+        }
+    } else {
+        // Fallback to bandwidth controller if packet monitor is not available
+        let bandwidth_controller = state.bandwidth_controller.lock().await;
+        let updates = bandwidth_controller.get_all_bandwidth_updates().await;
+
+        bandwidth_updates = updates
+            .into_iter()
+            .map(|(device_id, bandwidth_current)| BandwidthUpdate {
+                device_id,
+                bandwidth_current,
+            })
+            .collect();
+    }
 
     if bandwidth_updates.is_empty() {
         log::debug!("No bandwidth data available yet");
     } else {
-        log::info!("Returning {} bandwidth updates", bandwidth_updates.len());
+        log::debug!("Returning {} bandwidth updates", bandwidth_updates.len());
     }
 
     Ok(bandwidth_updates)

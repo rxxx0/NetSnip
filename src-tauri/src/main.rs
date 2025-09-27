@@ -11,23 +11,52 @@ use modules::scanner::NetworkScanner;
 use modules::arp_controller::ArpController;
 use modules::bandwidth::BandwidthController;
 use modules::database::Database;
+use modules::packet_monitor::PacketMonitor;
+use pnet::datalink;
 
 pub struct AppState {
-    scanner: Arc<Mutex<NetworkScanner>>,
-    arp_controller: Arc<Mutex<Option<ArpController>>>,
-    bandwidth_controller: Arc<Mutex<BandwidthController>>,
-    database: Arc<Mutex<Database>>,
+    pub scanner: Arc<Mutex<NetworkScanner>>,
+    pub arp_controller: Arc<Mutex<ArpController>>,
+    pub bandwidth_controller: Arc<Mutex<BandwidthController>>,
+    pub database: Arc<Mutex<Database>>,
+    pub packet_monitor: Arc<Mutex<Option<PacketMonitor>>>,
 }
 
 impl AppState {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let database = Database::new("netsnip.db").await?;
 
+        // Find the network interface for ARP controller
+        let interface = datalink::interfaces()
+            .into_iter()
+            .find(|iface| {
+                iface.is_up()
+                    && !iface.is_loopback()
+                    && iface.ips.iter().any(|ip| ip.is_ipv4())
+            })
+            .ok_or("No suitable network interface found")?;
+
+        // Create ARP controller with the interface
+        let arp_controller = ArpController::new(interface.clone())?;
+
+        // Try to create packet monitor (may fail if no permissions)
+        let packet_monitor = match PacketMonitor::new(Some(interface.name.clone())) {
+            Ok(monitor) => {
+                log::info!("Packet monitor initialized");
+                Some(monitor)
+            },
+            Err(e) => {
+                log::warn!("Could not initialize packet monitor: {}. Bandwidth monitoring will be limited.", e);
+                None
+            }
+        };
+
         Ok(Self {
             scanner: Arc::new(Mutex::new(NetworkScanner::new()?)),
-            arp_controller: Arc::new(Mutex::new(None)),
+            arp_controller: Arc::new(Mutex::new(arp_controller)),
             bandwidth_controller: Arc::new(Mutex::new(BandwidthController::new())),
             database: Arc::new(Mutex::new(database)),
+            packet_monitor: Arc::new(Mutex::new(packet_monitor)),
         })
     }
 }
@@ -40,6 +69,19 @@ fn main() {
         .setup(|app| {
             let runtime = tokio::runtime::Runtime::new()?;
             let app_state = runtime.block_on(AppState::new())?;
+
+            // Try to start packet monitoring if available
+            runtime.block_on(async {
+                let packet_monitor = app_state.packet_monitor.lock().await;
+                if let Some(monitor) = packet_monitor.as_ref() {
+                    if let Err(e) = monitor.start_monitoring().await {
+                        log::warn!("Could not start packet monitoring: {}", e);
+                    } else {
+                        log::info!("Packet monitoring started successfully");
+                    }
+                }
+            });
+
             app.manage(app_state);
             Ok(())
         })

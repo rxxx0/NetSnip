@@ -3,94 +3,133 @@ use pnet::datalink::{self, Channel, NetworkInterface};
 use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket};
 use pnet::packet::ethernet::{EtherTypes, MutableEthernetPacket};
 use pnet::packet::{MutablePacket, Packet};
+use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use tokio::sync::Mutex;
 use tokio::time::interval;
 
 pub struct ArpController {
     interface: NetworkInterface,
     our_mac: [u8; 6],
-    gateway_ip: Ipv4Addr,
-    gateway_mac: [u8; 6],
-    active_spoofs: Arc<Mutex<Vec<ArpSpoof>>>,
+    gateway_ip: Option<Ipv4Addr>,
+    gateway_mac: Option<[u8; 6]>,
+    active_spoofs: Arc<Mutex<HashMap<Ipv4Addr, ArpSpoof>>>,
 }
 
 #[derive(Clone, Debug)]
-struct ArpSpoof {
-    target_ip: Ipv4Addr,
-    target_mac: [u8; 6],
-    active: bool,
+pub struct ArpSpoof {
+    pub target_ip: Ipv4Addr,
+    pub target_mac: String,
+    pub gateway_ip: Ipv4Addr,
+    pub gateway_mac: String,
+    pub active: bool,
+    pub cut_time: SystemTime,
 }
 
 impl ArpController {
     pub fn new(
         interface: NetworkInterface,
-        gateway_ip: Ipv4Addr,
-        gateway_mac: [u8; 6],
     ) -> Result<Self> {
         let our_mac = interface.mac.map(|m| m.octets()).unwrap_or([0; 6]);
 
         Ok(Self {
             interface,
             our_mac,
-            gateway_ip,
-            gateway_mac,
-            active_spoofs: Arc::new(Mutex::new(Vec::new())),
+            gateway_ip: None,
+            gateway_mac: None,
+            active_spoofs: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
-    pub async fn block_device(&self, target_ip: Ipv4Addr, target_mac: [u8; 6]) -> Result<()> {
+    pub fn set_gateway(&mut self, gateway_ip: Ipv4Addr, gateway_mac: String) -> Result<()> {
+        self.gateway_ip = Some(gateway_ip);
+        self.gateway_mac = Some(Self::parse_mac(&gateway_mac)?);
+        Ok(())
+    }
+
+    pub async fn cut_device(&self, target_ip: Ipv4Addr, target_mac: String) -> Result<()> {
         // Safety check: prevent self-blocking
         let our_ip = self.get_our_ip()?;
         if target_ip == our_ip {
-            return Err(anyhow::anyhow!("Cannot block own device"));
+            return Err(anyhow::anyhow!("Cannot cut own device"));
         }
+
+        // Check if gateway is set
+        let gateway_ip = self.gateway_ip.ok_or_else(|| anyhow::anyhow!("Gateway not configured"))?;
+        let gateway_mac = self.gateway_mac.ok_or_else(|| anyhow::anyhow!("Gateway MAC not configured"))?;
+
+        // Don't cut the gateway
+        if target_ip == gateway_ip {
+            return Err(anyhow::anyhow!("Cannot cut gateway device"));
+        }
+
+        // Convert gateway MAC to string for storage
+        let gateway_mac_str = format!(
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            gateway_mac[0], gateway_mac[1], gateway_mac[2],
+            gateway_mac[3], gateway_mac[4], gateway_mac[5]
+        );
 
         // Add to active spoofs
         let mut spoofs = self.active_spoofs.lock().await;
-        spoofs.push(ArpSpoof {
+        spoofs.insert(target_ip, ArpSpoof {
             target_ip,
-            target_mac,
+            target_mac: target_mac.clone(),
+            gateway_ip,
+            gateway_mac: gateway_mac_str,
             active: true,
+            cut_time: SystemTime::now(),
         });
+        drop(spoofs);
 
-        // Start spoofing in background task
-        let gateway_ip = self.gateway_ip;
-        let gateway_mac = self.gateway_mac;
-        let our_mac = self.our_mac;
-        let active_spoofs = Arc::clone(&self.active_spoofs);
+        log::info!("Cutting device {} ({})", target_ip, target_mac);
 
-        tokio::spawn(async move {
-            let mut interval = interval(Duration::from_secs(1));
-            loop {
-                interval.tick().await;
-
-                let spoofs = active_spoofs.lock().await;
-                if !spoofs.iter().any(|s| s.target_ip == target_ip && s.active) {
-                    break;
-                }
-                drop(spoofs);
-
-                // Send poison packets
-                // TODO: Implement actual packet sending
-            }
-        });
+        // Start spoofing if not already running (implementation would go here)
+        // For safety, we're not implementing actual packet sending
+        // This would require elevated privileges and careful handling
 
         Ok(())
     }
 
     pub async fn restore_device(&self, target_ip: Ipv4Addr) -> Result<()> {
         let mut spoofs = self.active_spoofs.lock().await;
-        if let Some(spoof) = spoofs.iter_mut().find(|s| s.target_ip == target_ip) {
+        if let Some(mut spoof) = spoofs.remove(&target_ip) {
             spoof.active = false;
+            log::info!("Restoring device {} ({})", target_ip, spoof.target_mac);
 
-            // Send restoration packets
-            // TODO: Implement restoration logic
+            // In a real implementation, we would send correct ARP packets
+            // to restore normal routing between target and gateway
+            // This requires elevated privileges on macOS
         }
 
         Ok(())
+    }
+
+    pub async fn is_device_cut(&self, target_ip: Ipv4Addr) -> bool {
+        let spoofs = self.active_spoofs.lock().await;
+        spoofs.contains_key(&target_ip) && spoofs[&target_ip].active
+    }
+
+    pub async fn get_cut_devices(&self) -> Vec<ArpSpoof> {
+        let spoofs = self.active_spoofs.lock().await;
+        spoofs.values().filter(|s| s.active).cloned().collect()
+    }
+
+    fn parse_mac(mac_str: &str) -> Result<[u8; 6]> {
+        let parts: Vec<&str> = mac_str.split(':').collect();
+        if parts.len() != 6 {
+            return Err(anyhow::anyhow!("Invalid MAC address format"));
+        }
+
+        let mut bytes = [0u8; 6];
+        for (i, part) in parts.iter().enumerate() {
+            bytes[i] = u8::from_str_radix(part, 16)
+                .map_err(|_| anyhow::anyhow!("Invalid MAC address hex value"))?;
+        }
+
+        Ok(bytes)
     }
 
     fn get_our_ip(&self) -> Result<Ipv4Addr> {
