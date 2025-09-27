@@ -10,7 +10,7 @@ use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 use crate::modules::vendor::VendorLookup;
 
 #[derive(Clone, Debug)]
@@ -117,13 +117,17 @@ impl NetworkScanner {
 
         // Get our IP and subnet
         let local_ip = self.get_local_ip()?;
-        let subnet_mask = self.get_subnet_mask()?;
+        let _actual_subnet_mask = self.get_subnet_mask()?;
 
-        // Calculate the network range
-        let network = IpNetwork::new(IpAddr::V4(local_ip), subnet_mask)?;
+        // LIMIT SCAN TO /24 SUBNET (256 IPs max) for performance
+        // Even on larger networks, we only scan the local /24 subnet
+        let limited_subnet_mask = 24u8;
 
-        println!("DEBUG: Starting network scan for network: {}", network);
-        log::info!("Scanning network: {}", network);
+        // Calculate the network range - force to /24
+        let network = IpNetwork::new(IpAddr::V4(local_ip), limited_subnet_mask)?;
+
+        println!("DEBUG: Starting network scan for network: {} (limited to /24)", network);
+        log::info!("Scanning network: {} (limited to /24 for performance)", network);
 
         // Get the gateway first
         let (gateway_ip, _gateway_mac) = match self.get_gateway().await {
@@ -166,17 +170,32 @@ impl NetworkScanner {
                         if let Some(at_pos) = line.find(" at ") {
                             let after_at = &line[at_pos + 4..];
                             if let Some(mac_end) = after_at.find(" on ") {
-                                let mac = &after_at[..mac_end];
+                                let raw_mac = &after_at[..mac_end];
 
-                                // Extract hostname if available
-                                let hostname = if start > 0 {
-                                    Some(line[..start].trim().to_string())
+                                // Normalize MAC address format (from 0:0:5e:14:35:1 to 00:00:5E:14:35:01)
+                                let mac = self.normalize_mac_address(raw_mac);
+
+                                // Extract hostname if available (but it's usually "?" in arp output)
+                                let arp_hostname = if start > 0 {
+                                    let name = line[..start].trim();
+                                    if name != "?" {
+                                        Some(name.to_string())
+                                    } else {
+                                        None
+                                    }
                                 } else {
                                     None
                                 };
 
-                                let manufacturer = self.vendor_lookup.lookup(mac);
-                                let device_type = self.vendor_lookup.get_device_type(mac, hostname.as_ref());
+                                // Try to resolve hostname via DNS if not available from ARP
+                                let hostname = if arp_hostname.is_none() {
+                                    self.resolve_hostname(ip).await
+                                } else {
+                                    arp_hostname
+                                };
+
+                                let manufacturer = self.vendor_lookup.lookup(&mac);
+                                let device_type = self.vendor_lookup.get_device_type(&mac, hostname.as_ref());
 
                                 devices.push(NetworkDevice {
                                     ip,
@@ -196,6 +215,7 @@ impl NetworkScanner {
         // Also scan the network range with ping to discover more devices
         log::info!("Performing ping sweep...");
         let scan_tasks = self.ping_sweep(&network).await;
+        log::info!("Ping sweep complete, found {} active hosts", scan_tasks.len());
 
         // Merge the results
         let mut devices_map: HashMap<Ipv4Addr, NetworkDevice> = devices
@@ -203,23 +223,48 @@ impl NetworkScanner {
             .map(|d| (d.ip, d.clone()))
             .collect();
 
+        // Limit MAC lookups to avoid hanging
+        const MAX_MAC_LOOKUPS: usize = 20;
+        let mut mac_lookup_count = 0;
+
+        log::info!("Looking up MAC addresses for new devices...");
         for ip in scan_tasks {
             if !devices_map.contains_key(&ip) {
-                // Try to get MAC for newly discovered IP
-                if let Ok(mac) = self.get_mac_for_ip(ip).await {
-                    let manufacturer = self.vendor_lookup.lookup(&mac);
-                    let device_type = self.vendor_lookup.get_device_type(&mac, None);
-                    devices_map.insert(
-                        ip,
-                        NetworkDevice {
+                // Limit MAC lookups to prevent hanging
+                if mac_lookup_count >= MAX_MAC_LOOKUPS {
+                    log::warn!("Reached MAC lookup limit, skipping remaining hosts");
+                    break;
+                }
+                mac_lookup_count += 1;
+
+                // Try to get MAC for newly discovered IP with timeout
+                match timeout(
+                    Duration::from_millis(500),
+                    self.get_mac_for_ip(ip)
+                ).await {
+                    Ok(Ok(raw_mac)) => {
+                        let mac = self.normalize_mac_address(&raw_mac);
+                        let manufacturer = self.vendor_lookup.lookup(&mac);
+                        let hostname = self.resolve_hostname(ip).await;
+                        let device_type = self.vendor_lookup.get_device_type(&mac, hostname.as_ref());
+                        devices_map.insert(
                             ip,
-                            mac,
-                            hostname: None,
-                            manufacturer,
-                            device_type,
-                            is_gateway: ip == gateway_ip,
-                        },
-                    );
+                            NetworkDevice {
+                                ip,
+                                mac,
+                                hostname,
+                                manufacturer,
+                                device_type,
+                                is_gateway: ip == gateway_ip,
+                            },
+                        );
+                    }
+                    Ok(Err(e)) => {
+                        log::debug!("Could not get MAC for {}: {}", ip, e);
+                    }
+                    Err(_) => {
+                        log::debug!("MAC lookup timeout for {}", ip);
+                    }
                 }
             }
         }
@@ -230,6 +275,7 @@ impl NetworkScanner {
 
         let result: Vec<NetworkDevice> = devices_map.into_values().collect();
         log::info!("Network scan complete. Found {} devices", result.len());
+        println!("Returning {} devices to frontend", result.len());
 
         Ok(result)
     }
@@ -238,6 +284,8 @@ impl NetworkScanner {
     async fn ping_sweep(&self, network: &IpNetwork) -> Vec<Ipv4Addr> {
         let mut active_ips = Vec::new();
         let mut handles = Vec::new();
+        let mut ip_count = 0;
+        const MAX_IPS_TO_SCAN: usize = 256; // Safety limit
 
         for ip in network.iter() {
             if let IpAddr::V4(ipv4) = ip {
@@ -246,11 +294,18 @@ impl NetworkScanner {
                     continue;
                 }
 
+                // Safety limit to prevent scanning too many IPs
+                ip_count += 1;
+                if ip_count > MAX_IPS_TO_SCAN {
+                    log::warn!("Reached maximum IP scan limit of {}", MAX_IPS_TO_SCAN);
+                    break;
+                }
+
                 let ip_copy = ipv4;
                 let handle = tokio::spawn(async move {
-                    // Quick ping with 1 second timeout (macOS uses -t for TTL, -W for timeout in ms)
+                    // Quick ping with 200ms timeout for faster scanning (macOS uses -t for TTL, -W for timeout in ms)
                     let output = Command::new("ping")
-                        .args(&["-c", "1", "-W", "1000", "-t", "1", &ip_copy.to_string()])
+                        .args(&["-c", "1", "-W", "200", "-t", "1", &ip_copy.to_string()])
                         .output();
 
                     match output {
@@ -262,7 +317,7 @@ impl NetworkScanner {
                 handles.push(handle);
 
                 // Limit concurrent pings to avoid overwhelming the system
-                if handles.len() >= 30 {
+                if handles.len() >= 100 {
                     for handle in handles.drain(..) {
                         if let Ok(Some(ip)) = handle.await {
                             active_ips.push(ip);
@@ -330,6 +385,50 @@ impl NetworkScanner {
     pub async fn get_discovered_devices(&self) -> Vec<NetworkDevice> {
         let devices = self.discovered_devices.lock().await;
         devices.values().cloned().collect()
+    }
+
+    /// Normalize MAC address to standard format (uppercase, zero-padded)
+    /// e.g., "0:0:5e:14:35:1" becomes "00:00:5E:14:35:01"
+    fn normalize_mac_address(&self, mac: &str) -> String {
+        let parts: Vec<&str> = mac.split(':').collect();
+        if parts.len() != 6 {
+            return mac.to_string(); // Return as-is if not standard format
+        }
+
+        parts.iter()
+            .map(|part| format!("{:0>2}", part)) // Zero-pad to 2 digits
+            .collect::<Vec<_>>()
+            .join(":")
+            .to_uppercase()
+    }
+
+    /// Resolve hostname for an IP address using DNS
+    async fn resolve_hostname(&self, ip: Ipv4Addr) -> Option<String> {
+        // Try to resolve hostname using DNS lookup
+        match tokio::task::spawn_blocking(move || {
+            Command::new("host")
+                .arg(ip.to_string())
+                .output()
+        }).await {
+            Ok(Ok(output)) => {
+                let output_str = String::from_utf8_lossy(&output.stdout);
+                // Parse output like: "1.64.102.10.in-addr.arpa domain name pointer hostname.local."
+                for line in output_str.lines() {
+                    if line.contains("domain name pointer") {
+                        if let Some(pos) = line.find("pointer ") {
+                            let hostname = &line[pos + 8..];
+                            // Remove trailing dot if present
+                            let hostname = hostname.trim_end_matches('.');
+                            if !hostname.is_empty() && hostname != "localhost" {
+                                return Some(hostname.to_string());
+                            }
+                        }
+                    }
+                }
+                None
+            }
+            _ => None
+        }
     }
 
     #[allow(dead_code)]
