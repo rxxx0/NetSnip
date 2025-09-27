@@ -20,11 +20,8 @@ import {
 } from '@dnd-kit/sortable';
 
 export const DeviceList: React.FC = () => {
-  const { scanning, getFilteredDevices, searchQuery } = useNetworkStore();
+  const { scanning, getFilteredDevices, searchQuery, filter, setFilter } = useNetworkStore();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filter, setFilter] = useState<
-    "all" | "online" | "blocked" | "limited"
-  >("all");
 
   // Get filtered devices based on search and status filter
   const searchFilteredDevices = getFilteredDevices();
@@ -39,9 +36,14 @@ export const DeviceList: React.FC = () => {
     return device.status === filter;
   });
 
-  // Setup drag and drop sensors
+  // Setup drag and drop sensors with activation constraints
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Minimum drag distance before activation
+        delay: 250, // Delay before drag starts to distinguish from clicks
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -76,15 +78,15 @@ export const DeviceList: React.FC = () => {
           <div className="relative">
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value as any)}
-              className="neu-input pr-10 pl-4 py-2 text-sm appearance-none cursor-pointer"
+              onChange={(e) => setFilter(e.target.value as 'all' | 'online' | 'blocked' | 'limited')}
+              className="neu-select appearance-none pr-10 pl-4 py-2 text-sm cursor-pointer"
             >
               <option value="all">All Devices</option>
               <option value="online">Online</option>
               <option value="blocked">Blocked</option>
               <option value="limited">Limited</option>
             </select>
-            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-neu-text-secondary" />
+            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-400" />
           </div>
 
           {/* View Mode Toggle */}

@@ -152,6 +152,7 @@ interface NetworkStore {
   error: string | null;
   selectedDevice: Device | null;
   searchQuery: string;
+  filter: 'all' | 'online' | 'blocked' | 'limited';
 
   scanNetwork: () => Promise<void>;
   getNetworkInfo: () => Promise<void>;
@@ -162,6 +163,7 @@ interface NetworkStore {
   selectDevice: (device: Device | null) => void;
   clearError: () => void;
   setSearchQuery: (query: string) => void;
+  setFilter: (filter: 'all' | 'online' | 'blocked' | 'limited') => void;
   getFilteredDevices: () => Device[];
 }
 
@@ -173,6 +175,7 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
   error: null,
   selectedDevice: null,
   searchQuery: '',
+  filter: 'all',
 
   scanNetwork: async () => {
     set({ scanning: true, error: null });
@@ -298,6 +301,10 @@ export const useNetworkStore = create<NetworkStore>((set, get) => ({
 
   setSearchQuery: (query: string) => {
     set({ searchQuery: query });
+  },
+
+  setFilter: (filter: 'all' | 'online' | 'blocked' | 'limited') => {
+    set({ filter });
   },
 
   getFilteredDevices: () => {

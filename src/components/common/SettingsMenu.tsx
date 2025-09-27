@@ -13,7 +13,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, onClick }) => (
     onClick={onClick}
     className="w-full flex items-center gap-3 px-3 py-2 text-sm text-text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
   >
-    <span className="w-4 h-4 text-text-secondary">{icon}</span>
+    <span className="w-4 h-4 flex items-center justify-center text-gray-400">{icon}</span>
     <span>{label}</span>
   </button>
 );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Edit2, Ban, Play, Check } from 'lucide-react';
+import { Zap, Edit2, Ban, Play, Check, GripVertical } from 'lucide-react';
 import { type Device, useNetworkStore } from '../../stores/networkStore';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -32,11 +32,12 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Update customName when device prop changes
+  // Update customName when device prop changes and load from localStorage
   useEffect(() => {
-    setCustomName(device.customName || '');
+    const storedName = localStorage.getItem(`device-name-${device.id}`);
+    setCustomName(storedName || device.customName || '');
     setBandwidthLimit(device.bandwidthLimit?.toString() || '');
-  }, [device.customName, device.bandwidthLimit]);
+  }, [device.id, device.customName, device.bandwidthLimit]);
 
   const getDeviceTypeColor = () => {
     if (device.isGateway) return 'var(--accent-primary)';
@@ -54,17 +55,10 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     }
   };
 
-  const getStatusIndicator = () => {
-    switch (device.status) {
-      case 'online': return 'bg-green-500';
-      case 'blocked': return 'bg-red-500';
-      case 'limited': return 'bg-orange-500';
-      default: return 'bg-gray-400';
-    }
-  };
-
   const handleSaveName = () => {
     updateDeviceName(device.id, customName);
+    // Persist to localStorage
+    localStorage.setItem(`device-name-${device.id}`, customName);
     setIsEditing(false);
   };
 
@@ -94,13 +88,20 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
       <div
         ref={setNodeRef}
         style={style}
-        {...attributes}
-        {...listeners}
-        className="neu-card p-3 rounded-lg flex items-center justify-between hover:transform hover:scale-[1.005] transition-all cursor-move">
-        <div className="flex items-center gap-3">
-          {/* Device Type Indicator - Simple colored dot */}
+        className="neu-card p-3 rounded-lg flex items-center justify-between hover:transform hover:scale-[1.005] transition-all sortable-item">
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-move p-1 mr-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+        >
+          <GripVertical className="w-4 h-4 text-gray-400" />
+        </div>
+
+        <div className="flex items-center gap-3 flex-1">
+          {/* Device Type Indicator - Square shape */}
           <div
-            className="w-3 h-3 rounded-full"
+            className="w-3 h-3 rounded"
             style={{
               background: getDeviceTypeColor(),
             }}
@@ -108,21 +109,51 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
 
           {/* Info */}
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-text-primary">
-                {device.customName || device.name}
-              </h3>
-              {device.isGateway && (
-                <span className="inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full bg-blue-500/10 text-blue-500">
-                  Gateway
-                </span>
+            <div className="flex items-center gap-2 mb-0.5">
+              {isEditing ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    className="neu-input px-2 py-1 text-xs"
+                    autoFocus
+                    onKeyPress={(e) => e.key === 'Enter' && handleSaveName()}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <button onClick={(e) => {
+                    e.stopPropagation();
+                    handleSaveName();
+                  }} className="text-green-500">
+                    <Check className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-text-primary">
+                    {device.customName || device.name}
+                  </h3>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditing(true);
+                    }}
+                    className="opacity-0 hover:opacity-50 transition-opacity"
+                  >
+                    <Edit2 className="w-2.5 h-2.5" />
+                  </button>
+                  {device.isGateway && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-blue-500/10 text-blue-500">
+                      Gateway
+                    </span>
+                  )}
+                  {device.isCurrentDevice && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-purple-500/10 text-purple-500">
+                      This Device
+                    </span>
+                  )}
+                </div>
               )}
-              {device.isCurrentDevice && (
-                <span className="inline-flex px-2 py-0.5 text-[10px] font-medium rounded-full bg-purple-500/10 text-purple-500">
-                  This Device
-                </span>
-              )}
-              <div className={`w-1.5 h-1.5 rounded-full ${getStatusIndicator()}`}></div>
             </div>
             <p className="text-xs text-text-secondary font-mono">
               {device.ip} • {device.mac}
@@ -145,8 +176,11 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
 
           {device.status === 'blocked' ? (
             <button
-              onClick={() => handleAction('restore')}
-              className="neu-button-primary h-8 px-3 flex items-center gap-1 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAction('restore');
+              }}
+              className="neu-button-primary h-9 px-3 flex items-center justify-center gap-1 text-xs"
             >
               <Play className="w-3 h-3" />
               Restore
@@ -154,16 +188,22 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
           ) : (
             <>
               <button
-                onClick={() => handleAction('cut')}
-                className="neu-button-danger h-8 px-3 flex items-center gap-1 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAction('cut');
+                }}
+                className="neu-button-danger h-9 px-3 flex items-center justify-center gap-1 text-xs"
                 disabled={device.isCurrentDevice}
               >
                 <Ban className="w-3 h-3" />
                 Cut
               </button>
               <button
-                onClick={() => setShowBandwidthInput(!showBandwidthInput)}
-                className="neu-button h-8 px-3 flex items-center gap-1 text-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowBandwidthInput(!showBandwidthInput);
+                }}
+                className="neu-button h-9 px-3 flex items-center justify-center gap-1 text-xs"
               >
                 <Zap className="w-3 h-3" />
                 Limit
@@ -179,18 +219,22 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className="neu-card-hover p-4 rounded-lg relative animate-scale-in cursor-move">
-      {/* Status Indicator */}
-      <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${getStatusIndicator()}`}></div>
+      className="neu-card-hover p-4 h-[280px] rounded-lg relative animate-scale-in flex flex-col sortable-item">
+      {/* Drag Handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 cursor-move p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded z-10"
+      >
+        <GripVertical className="w-4 h-4 text-gray-400" />
+      </div>
 
       {/* Device Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          {/* Simple colored indicator - no wrapper */}
+          {/* Device Type Indicator - Square shape */}
           <div
-            className="w-3 h-3 rounded-full"
+            className="w-3 h-3 rounded"
             style={{
               background: getDeviceTypeColor(),
             }}
@@ -219,7 +263,10 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
                   <h3 className="text-sm font-semibold text-text-primary">
                     {device.customName || device.name}
                   </h3>
-                  <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity">
+                  <button onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditing(true);
+                  }} className="opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity">
                     <Edit2 className="w-2.5 h-2.5" />
                   </button>
                   {device.isGateway && (
@@ -332,10 +379,13 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
       )}
 
       {/* Action Buttons - Fixed height */}
-      <div className="flex gap-1">
+      <div className="flex gap-1 mt-auto">
         {device.status === 'blocked' ? (
           <button
-            onClick={() => handleAction('restore')}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleAction('restore');
+            }}
             className="neu-button-primary h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
           >
             <Play className="w-3 h-3" />
@@ -344,7 +394,10 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
         ) : (
           <>
             <button
-              onClick={() => handleAction('cut')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAction('cut');
+              }}
               className="neu-button-danger h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
               disabled={device.isCurrentDevice}
             >
@@ -352,7 +405,10 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({ device, viewMode }) => {
               Cut
             </button>
             <button
-              onClick={() => setShowBandwidthInput(!showBandwidthInput)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBandwidthInput(!showBandwidthInput);
+              }}
               className="neu-button h-9 flex-1 text-xs flex items-center justify-center gap-1 ripple"
             >
               <Zap className="w-3 h-3" />

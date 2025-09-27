@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useNetworkStore } from '../../stores/networkStore';
 
 export const Dashboard: React.FC = () => {
-  const { devices, networkInfo, scanning } = useNetworkStore();
+  const { devices, networkInfo, scanning, filter, setFilter } = useNetworkStore();
 
   const stats = useMemo(() => {
     const online = devices.filter(d => d.status === 'online').length;
@@ -22,16 +22,30 @@ export const Dashboard: React.FC = () => {
   const StatCard: React.FC<{
     label: string;
     value: string | number;
-  }> = ({ label, value }) => (
-    <div className="neu-card-hover p-4 text-center transition-all">
-      <p className="text-2xl font-semibold text-text-primary">
+    isActive?: boolean;
+    onClick?: () => void;
+    activeColor?: string;
+  }> = ({ label, value, isActive, onClick, activeColor }) => (
+    <button
+      onClick={onClick}
+      className={`neu-card p-4 text-center transition-all cursor-pointer w-full ${
+        isActive ? 'neu-pressed' : 'hover:-translate-y-0.5'
+      }`}
+    >
+      <p className={`text-2xl font-semibold transition-colors ${
+        isActive ? activeColor : 'text-text-primary'
+      }`}>
         {value}
       </p>
       <p className="text-xs text-text-secondary mt-1">
         {label}
       </p>
-    </div>
+    </button>
   );
+
+  const handleFilterClick = (filterType: 'all' | 'blocked' | 'limited') => {
+    setFilter(filter === filterType ? 'all' : filterType);
+  };
 
   return (
     <div className="mb-6">
@@ -54,16 +68,25 @@ export const Dashboard: React.FC = () => {
         <StatCard
           label="Total Devices"
           value={stats.totalDevices}
+          isActive={filter === 'all'}
+          onClick={() => handleFilterClick('all')}
+          activeColor="text-green-500"
         />
 
         <StatCard
           label="Blocked"
           value={stats.blockedDevices}
+          isActive={filter === 'blocked'}
+          onClick={() => handleFilterClick('blocked')}
+          activeColor="text-red-500"
         />
 
         <StatCard
           label="Limited"
           value={stats.limitedDevices}
+          isActive={filter === 'limited'}
+          onClick={() => handleFilterClick('limited')}
+          activeColor="text-yellow-500"
         />
 
         <StatCard
